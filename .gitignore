@@ -1,0 +1,15 @@
+node_modules
+.next
+.expo
+dist
+.env
+.env.local
+.data
+coverage
+*.tsbuildinfo
+test-results
+.DS_Store
+.storage
+.playwright-cli
+output
+apps/web/next-env.d.ts

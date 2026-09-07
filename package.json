@@ -1,0 +1,30 @@
+{
+  "name": "araland",
+  "private": true,
+  "packageManager": "bun@1.3.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run --parallel --filter @araland/api --filter @araland/web dev",
+    "dev:web": "bun run --filter @araland/web dev",
+    "dev:api": "bun run --filter @araland/api dev",
+    "dev:mobile": "bun run --filter @araland/mobile start",
+    "db:generate": "bun run --filter @araland/db generate",
+    "db:push": "bun run --filter @araland/db push",
+    "db:seed": "bun run --filter @araland/db seed",
+    "typecheck": "bun run --filter '*' typecheck",
+    "test": "bun run --filter @araland/api test",
+    "build": "bun run --filter @araland/web build",
+    "db:local": "bun scripts/local-db.ts start",
+    "db:stop": "bun scripts/local-db.ts stop",
+    "db:deploy": "bun run --filter @araland/db deploy",
+    "mobile:export": "bun run --filter @araland/mobile export",
+    "check": "bun run typecheck && bun run test && bun run build"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "@types/bun": "^1.3.0"
+  }
+}

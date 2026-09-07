@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "آرالند",
+    "slug": "araland-manager",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "araland",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "ir.araland.manager",
+      "infoPlist": { "ITSAppUsesNonExemptEncryption": false }
+    },
+    "android": { "package": "ir.araland.manager" },
+    "plugins": ["expo-secure-store", "expo-document-picker", "expo-font"],
+    "extra": { "supportsRTL": true }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "@araland/db", "version": "0.1.0", "private": true,
+  "exports": {".": "./src/index.ts"},
+  "scripts": {
+    "generate": "bunx prisma generate",
+    "push": "bun --env-file=../../.env node_modules/prisma/build/index.js db push",
+    "migrate": "bun --env-file=../../.env node_modules/prisma/build/index.js migrate dev",
+    "deploy": "bun --env-file=../../.env node_modules/prisma/build/index.js migrate deploy",
+    "seed": "bun --env-file=../../.env src/seed.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {"@prisma/client": "6.19.0", "@araland/shared": "workspace:*"},
+  "devDependencies": {"prisma": "6.19.0"}
+}

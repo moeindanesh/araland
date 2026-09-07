@@ -1,0 +1,30 @@
+@import "tailwindcss";
+@import "uniwind";
+@import "heroui-native/styles";
+
+@source './node_modules/heroui-native/lib';
+@source '../../node_modules/heroui-native/lib';
+
+@layer theme {
+  :root {
+    @variant light {
+      --accent: #245b49;
+      --accent-foreground: #ffffff;
+      --background: #f6f5f0;
+      --foreground: #1e3029;
+      --surface: #ffffff;
+      --font-normal: "IRANYekanXFaNum-Regular";
+      --font-medium: "IRANYekanXFaNum-Medium";
+      --font-semibold: "IRANYekanXFaNum-DemiBold";
+      --font-bold: "IRANYekanXFaNum-Bold";
+      --radius: 1rem;
+    }
+    @variant dark {
+      --font-normal: "IRANYekanXFaNum-Regular";
+      --font-medium: "IRANYekanXFaNum-Medium";
+      --font-semibold: "IRANYekanXFaNum-DemiBold";
+      --font-bold: "IRANYekanXFaNum-Bold";
+      --radius: 1rem;
+    }
+  }
+}
