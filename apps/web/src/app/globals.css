@@ -2,6 +2,13 @@
 @import "@heroui/styles";
 @import "./landing.css";
 @import "./niche-templates.css";
+@import "./templates/orbit.css";
+@import "./templates/bloom.css";
+@import "./templates/forma.css";
+@import "./templates/pulse.css";
+@import "./templates/luma.css";
+@import "./templates/identity.css";
+@import "./templates/previews.css";
 .route-feedback { min-height: 100dvh; display: grid; place-items: center; padding: 28px; text-align: center; background: #f5f4ee; }
 .route-feedback > div { max-width: 480px; }
 .route-feedback h1 { font-size: clamp(25px, 5vw, 34px); color: #284c3e; line-height: 1.9; }

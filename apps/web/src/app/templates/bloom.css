@@ -1,0 +1,143 @@
+/* Bloom is a quiet ritual: centered oval imagery, a wandering care menu and soft organic spaces. */
+.landing-bloom .bloom-ritual,
+.landing-bloom .bloom-care,
+.landing-bloom .bloom-sanctuary {
+  max-width: var(--page-width);
+  margin-inline: auto;
+  padding-inline: var(--page-gutter);
+}
+.landing-bloom :is(.bloom-ritual, .bloom-care, .bloom-sanctuary) :is(h1, h2, h3) { overflow-wrap: anywhere; }
+.landing-bloom .bloom-ritual { position: relative; padding-top: 45px; padding-bottom: 76px; }
+.landing-bloom .bloom-ritual-heading { position: relative; z-index: 1; text-align: center; max-width: 950px; margin-inline: auto; }
+.landing-bloom .bloom-whisper { display: inline-flex; align-items: center; gap: 18px; color: var(--muted); font-size: 11px; }
+.landing-bloom .bloom-whisper::before,
+.landing-bloom .bloom-whisper::after { content: ""; width: 28px; height: 1px; background: currentColor; opacity: 0.5; }
+.landing-bloom .bloom-ritual h1 { font-size: clamp(42px, 4.9vw, 72px); line-height: 1.8; font-weight: 400; letter-spacing: -0.055em; margin-top: 22px; }
+.landing-bloom .bloom-ritual h1 > span { display: block; }
+.landing-bloom .bloom-ritual h1 > span + span { color: #756657; }
+.landing-bloom .bloom-ritual-heading > p { max-width: 550px; margin: 21px auto 0; color: var(--muted); font-size: 13px; line-height: 2.25; }
+.landing-bloom .bloom-ritual-scene { position: relative; width: 76%; max-width: 900px; margin: 47px auto 0; }
+.landing-bloom .bloom-ritual-photo { padding: 12px; border: 1px solid #c7bdb0; border-radius: 50%; transform: rotate(-3deg); }
+.landing-bloom .bloom-ritual-photo > img { width: 100%; aspect-ratio: 2.2; object-fit: cover; border-radius: 50%; }
+.landing-bloom .bloom-ritual-flower { position: absolute; inset-block-start: -23px; inset-inline-start: -44px; width: 106px; height: 106px; color: #978775; transform: rotate(13deg); }
+.landing-bloom .bloom-ritual-signature { position: absolute; inset-block-end: 4%; inset-inline-start: -7%; font-size: 13px; writing-mode: vertical-rl; transform: rotate(180deg); color: #756657; }
+.landing-bloom .bloom-ritual-seed { position: absolute; inset-inline-end: -7%; inset-block-start: 34%; width: 39px; height: 78px; border: 1px solid #c7bdb0; border-radius: 90% 0 90% 0; transform: rotate(25deg); }
+.landing-bloom .bloom-ritual-actions { display: flex; flex-direction: column; align-items: center; gap: 18px; margin-top: 37px; }
+.landing-bloom .bloom-action { border-radius: 50px; min-height: 52px; padding-inline: 26px; box-shadow: none; }
+.landing-bloom .bloom-discover { display: inline-flex; align-items: center; gap: 8px; padding: 8px; min-height: 44px; font-size: 10px; color: var(--muted); }
+.landing-bloom .bloom-discover:hover svg { transform: translateY(3px); }
+.landing-bloom .bloom-discover svg { transition: transform 180ms ease; }
+.landing-bloom .bloom-ritual-without-image { padding-top: 80px; padding-bottom: 100px; }
+.landing-bloom .bloom-care { padding-top: 72px; padding-bottom: 120px; }
+.landing-bloom .bloom-care-heading { text-align: center; max-width: 700px; margin-inline: auto; }
+.landing-bloom .bloom-care-heading > svg { display: block; width: 53px; height: 53px; margin: 0 auto 21px; color: #9d8b79; }
+.landing-bloom .bloom-care-heading h2 { font-size: clamp(33px, 3.6vw, 52px); font-weight: 400; margin-top: 16px; line-height: 1.8; }
+.landing-bloom .bloom-care-heading p { color: var(--muted); font-size: 13px; margin-top: 12px; }
+.landing-bloom .bloom-treatment-menu { display: flex; flex-direction: column; gap: 38px; margin-top: 62px; }
+.landing-bloom .bloom-treatment {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 230px;
+  grid-template-areas: "number copy image";
+  align-items: center;
+  gap: 35px;
+  padding: 20px 0 34px;
+  margin-inline-end: 13%;
+  border-bottom: 1px solid var(--line);
+  min-width: 0;
+}
+.landing-bloom .bloom-treatment:nth-child(even) { grid-template-columns: 230px minmax(0, 1fr) 42px; grid-template-areas: "image copy number"; margin-inline-end: 0; margin-inline-start: 13%; }
+.landing-bloom .bloom-treatment-number { grid-area: number; align-self: start; padding-top: 23px; font-size: 11px; color: #847760; }
+.landing-bloom .bloom-treatment-copy { grid-area: copy; min-width: 0; }
+.landing-bloom .bloom-treatment-copy h3 { font-size: clamp(25px, 2.5vw, 37px); line-height: 1.9; font-weight: 400; }
+.landing-bloom .bloom-treatment-copy p { font-size: 13px; color: var(--muted); margin-top: 9px; max-width: 410px; }
+.landing-bloom .bloom-treatment-link { display: inline-flex; align-items: center; gap: 18px; font-size: 10px; margin-top: 23px; padding-block: 7px; border-bottom: 1px solid #c2c1ac; }
+.landing-bloom .bloom-treatment-link svg { transition: transform 220ms ease; }
+.landing-bloom .bloom-treatment:hover .bloom-treatment-link svg { transform: translate(-4px, -4px); }
+.landing-bloom .bloom-treatment-image { grid-area: image; width: 100%; aspect-ratio: 1.05; overflow: hidden; background: #e8e1d4; border-radius: 48% 48% 5px 5px; transform: rotate(-5deg); }
+.landing-bloom .bloom-treatment:nth-child(3n + 2) .bloom-treatment-image { border-radius: 48% 48% 48% 48%; transform: rotate(7deg); aspect-ratio: 1.15; }
+.landing-bloom .bloom-treatment:nth-child(3n + 3) .bloom-treatment-image { border-radius: 5px 48% 48% 48%; transform: rotate(-4deg); }
+.landing-bloom .bloom-treatment-image > img { width: 100%; height: 100%; object-fit: cover; transition: transform 450ms ease; }
+.landing-bloom .bloom-treatment:hover .bloom-treatment-image > img { transform: scale(1.05); }
+.landing-bloom .bloom-treatment-image-empty { display: grid; place-items: center; }
+.landing-bloom .bloom-treatment-image-empty > svg { color: #a69b86; width: 45%; height: auto; }
+.landing-bloom .bloom-care-image { max-width: 740px; margin: 55px auto 0; }
+.landing-bloom .bloom-care-image > img { width: 100%; max-height: 500px; object-fit: cover; border-radius: 200px; }
+.landing-bloom .bloom-care-action { display: flex; justify-content: center; margin-top: 45px; }
+.landing-bloom .bloom-sanctuary { padding-top: 80px; padding-bottom: 90px; background: #e9eadd; border-radius: 90px 90px 0 0; }
+.landing-bloom .bloom-sanctuary-inner { display: grid; grid-template-columns: minmax(0, 1.13fr) minmax(0, 0.87fr); gap: 11%; align-items: center; }
+.landing-bloom .bloom-sanctuary-copy { min-width: 0; padding-block: 12px 28px; }
+.landing-bloom .bloom-sanctuary h2 { font-size: clamp(35px, 3.6vw, 51px); font-weight: 400; line-height: 1.9; margin-top: 23px; }
+.landing-bloom .bloom-sanctuary-copy > p { font-size: 14px; color: #61715c; line-height: 2.4; margin-top: 22px; }
+.landing-bloom .bloom-sanctuary-copy > .bloom-action { margin-top: 30px; }
+.landing-bloom .bloom-sanctuary-signature { display: block; font-size: 15px; color: #756657; margin-top: 35px; }
+.landing-bloom .bloom-sanctuary-signature::before { content: ""; display: block; width: 35px; height: 1px; background: #b3baa3; margin-bottom: 19px; }
+.landing-bloom .bloom-sanctuary-image { min-width: 0; position: relative; padding-top: 28px; }
+.landing-bloom .bloom-sanctuary-image > div { border: 1px solid #adb59b; padding: 11px; border-radius: 48% 48% 46% 46%; transform: rotate(6deg); }
+.landing-bloom .bloom-sanctuary-image img { width: 100%; aspect-ratio: 0.79; object-fit: cover; border-radius: 48% 48% 46% 46%; }
+.landing-bloom .bloom-sanctuary-image > svg { position: absolute; inset-block-start: -8px; inset-inline-end: -23px; width: 87px; height: 87px; color: #8d9478; transform: rotate(-18deg); }
+.landing-bloom .bloom-sanctuary-image figcaption { text-align: center; font-size: 10px; color: #6a755f; margin-top: 30px; }
+.landing-bloom .bloom-sanctuary-without-image .bloom-sanctuary-inner { grid-template-columns: 1fr; max-width: 740px; margin-inline: auto; text-align: center; }
+.landing-bloom .bloom-sanctuary-without-image .bloom-sanctuary-signature::before { margin-inline: auto; }
+.landing-bloom .bloom-notes { display: flex; flex-direction: column; gap: 0; max-width: 850px; margin: 50px auto 0; text-align: start; }
+.landing-bloom .bloom-note { display: flex; align-items: center; gap: 24px; padding-block: 22px; border-top: 1px solid var(--line); min-width: 0; }
+.landing-bloom .bloom-note > div { min-width: 0; flex: 1; }
+.landing-bloom .bloom-note > img { width: 62px; height: 75px; object-fit: cover; border-radius: 50%; }
+.landing-bloom .bloom-note h3 { font-size: 18px; }
+.landing-bloom .bloom-note p { color: var(--muted); font-size: 12px; margin-top: 5px; }
+.landing-bloom .bloom-note-petal { width: 20px; height: 38px; border: 1px solid #a0ab8e; border-radius: 90% 0 90% 0; transform: rotate(-15deg); margin-inline: 16px; }
+.landing-bloom :is(.bloom-ritual, .bloom-care, .bloom-sanctuary) a:focus-visible { outline: 2px solid var(--ink); outline-offset: 6px; }
+
+@media (max-width: 1000px) {
+  .landing-bloom .bloom-ritual-scene { width: 84%; }
+  .landing-bloom .bloom-treatment { grid-template-columns: 26px minmax(0, 1fr) 175px; gap: 22px; margin-inline-end: 7%; }
+  .landing-bloom .bloom-treatment:nth-child(even) { grid-template-columns: 175px minmax(0, 1fr) 26px; margin-inline-start: 7%; }
+  .landing-bloom .bloom-sanctuary-inner { gap: 7%; }
+}
+@media (max-width: 680px) {
+  .landing-bloom .bloom-ritual { padding-top: 32px; padding-bottom: 50px; }
+  .landing-bloom .bloom-whisper { font-size: 10px; gap: 11px; }
+  .landing-bloom .bloom-whisper::before,
+  .landing-bloom .bloom-whisper::after { width: 20px; }
+  .landing-bloom .bloom-ritual h1 { font-size: clamp(29px, 7.1vw, 43px); line-height: 1.95; letter-spacing: -0.055em; margin-top: 21px; }
+  .landing-bloom .bloom-ritual-heading > p { font-size: 11px; line-height: 2.3; margin-top: 18px; }
+  .landing-bloom .bloom-ritual-scene { width: 88%; margin-top: 37px; }
+  .landing-bloom .bloom-ritual-photo { padding: 6px; border-radius: 47%; }
+  .landing-bloom .bloom-ritual-photo > img { aspect-ratio: 1.18; border-radius: 47%; }
+  .landing-bloom .bloom-ritual-flower { width: 65px; height: 65px; inset-block-start: -20px; inset-inline-start: -22px; }
+  .landing-bloom .bloom-ritual-signature { inset-inline-start: -9%; font-size: 9px; }
+  .landing-bloom .bloom-ritual-seed { width: 20px; height: 42px; inset-inline-end: -6%; }
+  .landing-bloom .bloom-ritual-actions { gap: 12px; margin-top: 29px; }
+  .landing-bloom .bloom-action { min-height: 49px; font-size: 11px; padding-inline: 23px; }
+  .landing-bloom .bloom-care { padding-top: 44px; padding-bottom: 64px; }
+  .landing-bloom .bloom-care-heading > svg { width: 42px; height: 42px; margin-bottom: 17px; }
+  .landing-bloom .bloom-care-heading h2 { font-size: 29px; margin-top: 13px; line-height: 1.9; }
+  .landing-bloom .bloom-care-heading p { font-size: 11px; }
+  .landing-bloom .bloom-treatment-menu { margin-top: 34px; gap: 25px; }
+  .landing-bloom .bloom-treatment,
+  .landing-bloom .bloom-treatment:nth-child(even) { grid-template-columns: minmax(0, 1fr) 104px; grid-template-areas: "number image" "copy image"; column-gap: 18px; row-gap: 6px; margin-inline: 0; padding-top: 10px; padding-bottom: 27px; }
+  .landing-bloom .bloom-treatment:nth-child(even) { grid-template-columns: 104px minmax(0, 1fr); grid-template-areas: "image number" "image copy"; }
+  .landing-bloom .bloom-treatment-number { padding-top: 0; font-size: 10px; }
+  .landing-bloom .bloom-treatment-copy h3 { font-size: 22px; line-height: 1.8; }
+  .landing-bloom .bloom-treatment-copy p { font-size: 10px; line-height: 2.1; margin-top: 7px; }
+  .landing-bloom .bloom-treatment-link { font-size: 9px; gap: 10px; margin-top: 11px; padding-block: 5px; }
+  .landing-bloom .bloom-treatment-image { aspect-ratio: 0.74; }
+  .landing-bloom .bloom-treatment:nth-child(3n + 2) .bloom-treatment-image { aspect-ratio: 0.84; }
+  .landing-bloom .bloom-sanctuary { border-radius: 45px 45px 0 0; padding-top: 45px; padding-bottom: 48px; }
+  .landing-bloom .bloom-sanctuary-inner { display: flex; flex-direction: column; gap: 20px; }
+  .landing-bloom .bloom-sanctuary-copy { padding-block: 0; text-align: center; }
+  .landing-bloom .bloom-sanctuary h2 { font-size: 31px; line-height: 1.9; margin-top: 18px; }
+  .landing-bloom .bloom-sanctuary-copy > p { font-size: 12px; margin-top: 18px; }
+  .landing-bloom .bloom-sanctuary-signature { margin-top: 27px; font-size: 13px; }
+  .landing-bloom .bloom-sanctuary-signature::before { margin-inline: auto; margin-bottom: 15px; }
+  .landing-bloom .bloom-sanctuary-image { width: 75%; align-self: center; padding-top: 19px; }
+  .landing-bloom .bloom-sanctuary-image > div { padding: 8px; }
+  .landing-bloom .bloom-sanctuary-image > svg { width: 62px; height: 62px; inset-block-start: 0; inset-inline-end: -16px; }
+  .landing-bloom .bloom-sanctuary-image figcaption { margin-top: 20px; font-size: 9px; }
+  .landing-bloom .bloom-note { gap: 14px; }
+  .landing-bloom .bloom-note h3 { font-size: 16px; }
+  .landing-bloom .bloom-note p { font-size: 11px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-bloom :is(.bloom-discover svg, .bloom-treatment-link svg, .bloom-treatment-image > img) { transition: none; }
+  .landing-bloom :is(.bloom-discover:hover svg, .bloom-treatment:hover .bloom-treatment-link svg, .bloom-treatment:hover .bloom-treatment-image > img) { transform: none; }
+}

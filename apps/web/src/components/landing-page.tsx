@@ -14,17 +14,21 @@ import {
   ArrowUpLeft,
   ArrowLeft,
   Plus,
-  Minus,
   Instagram,
   X,
   Check,
   Play,
-  MoveUpRight,
 } from "lucide-react";
 import { request, json } from "@/lib/client";
 import { createSiteLinks, visibleSiteSections } from "@/lib/site-links";
 import { PublicSiteHeader, PublicSiteFooter } from "./public-site-chrome";
-import { NicheHero } from "./niche-hero";
+import { OrbitSection } from "./templates/orbit-sections";
+import { BloomSection } from "./templates/bloom-sections";
+import { FormaSection } from "./templates/forma-sections";
+import { PulseSection } from "./templates/pulse-sections";
+import { LumaSection } from "./templates/luma-sections";
+import { templateIdentity } from "./templates/identity";
+const compositions = { orbit: OrbitSection, bloom: BloomSection, forma: FormaSection, pulse: PulseSection, luma: LumaSection };
 import { Notice } from "./ui";
 export function LandingPage({
   site,
@@ -46,12 +50,34 @@ export function LandingPage({
   const content = preview ? site.draft : site.published || site.draft;
   const [previewPageId, setPreviewPageId] = useState(pageId);
   const [story, setStory] = useState<SectionItem | null>(null);
+  const landingRef = useRef<HTMLDivElement>(null);
   const pendingAnchor = useRef<string | null>(null);
   const currentPageId = preview ? previewPageId : pageId;
   const page = content.pages?.find((page) => page.id === currentPageId);
   const sections = visibleSiteSections(page?.sections || content.sections, posts.length > 0);
+  const fullscreenHero = site.templateId === "pulse" && !page &&
+    sections[0]?.type === "hero" && !!sections[0].image;
   const links = createSiteLinks(content, siteBasePath, page?.id, posts.length > 0);
   const { anchors, resolveLink } = links;
+  useEffect(() => {
+    const landing = landingRef.current;
+    if (!fullscreenHero || !landing) return;
+    const header = landing.querySelector<HTMLElement>(":scope > .landing-nav");
+    const banner = landing.querySelector<HTMLElement>(":scope > .preview-banner");
+    const measureChrome = () => {
+      landing.style.setProperty("--pulse-header-height", `${header?.getBoundingClientRect().height || 0}px`);
+      landing.style.setProperty("--pulse-preview-height", `${banner?.getBoundingClientRect().height || 0}px`);
+    };
+    measureChrome();
+    const observer = new ResizeObserver(measureChrome);
+    if (header) observer.observe(header);
+    if (banner) observer.observe(banner);
+    return () => {
+      observer.disconnect();
+      landing.style.removeProperty("--pulse-header-height");
+      landing.style.removeProperty("--pulse-preview-height");
+    };
+  }, [fullscreenHero, preview, embedded]);
   useEffect(() => {
     setPreviewPageId(pageId);
   }, [pageId]);
@@ -98,7 +124,8 @@ export function LandingPage({
   }, [site.slug, pageId, preview, embedded]);
   return (
     <div
-      className={`landing landing-${site.templateId} ${embedded ? "embedded" : ""}`}
+      ref={landingRef}
+      className={`landing landing-${site.templateId} ${fullscreenHero ? "landing-pulse-fullscreen" : ""} ${embedded ? "embedded" : ""}`}
       style={
         { "--site-accent": content.brand.primaryColor } as React.CSSProperties
       }
@@ -197,77 +224,20 @@ function LandingSection({
   preview: boolean;
   onStory: (item: SectionItem) => void;
 }) {
-  if (s.type === "hero" && (site.templateId === "pulse" || site.templateId === "luma"))
-    return <NicheHero section={s} content={content} template={site.templateId} href={resolveLink(s.buttonUrl, s.buttonPageId)} servicesHref={anchors.services} />;
-  if (s.type === "hero")
-    return (
-      <section className={`landing-hero ${!s.image ? "landing-hero-text-only" : ""}`} id={s.id}>
-        <div className="hero-copy">
-          <div className="landing-eyebrow">
-            <span />
-            {site.templateId === "orbit"
-              ? "ARCHITECTURE WITH A HUMAN TOUCH"
-              : site.templateId === "bloom"
-                ? "A LITTLE TIME, JUST FOR YOU"
-                : "YOUR NEXT CHAPTER STARTS HERE"}
-          </div>
-          <h1>
-            {s.title.split("\n").map((line, i) => (
-              <span key={i}>{line}</span>
-            ))}
-          </h1>
-          <div className="hero-description">
-            {s.subtitle && <p>{s.subtitle}</p>}
-            {s.buttonText?.trim() && (
-              <a className="landing-button" href={resolveLink(s.buttonUrl, s.buttonPageId)}>
-                {s.buttonText}
-                <ArrowUpLeft size={21} />
-              </a>
-            )}
-          </div>
-          {site.templateId === "forma" && preview && site.id === "demo" && (
-            <div className="hero-proof">
-              <div className="avatar-stack">
-                <img src="https://i.pravatar.cc/80?img=47" alt="" />
-                <img src="https://i.pravatar.cc/80?img=12" alt="" />
-                <img src="https://i.pravatar.cc/80?img=44" alt="" />
-              </div>
-              <span>
-                یادگیری، کنار آدم‌های شبیه تو
-                <br />
-                <b>پروژه واقعی · همراهی حرفه‌ای</b>
-              </span>
-            </div>
-          )}
-        </div>
-        {s.image && <div className="hero-photo">
-          <img src={s.image} alt={s.title.replace("\n", " ")} />
-          <span className="hero-stamp">
-            {site.templateId === "bloom"
-              ? "به خودت برگرد"
-              : site.templateId === "forma"
-                ? "LEARN. CREATE. GROW."
-                : "DESIGNED TO FEEL LIKE YOU"}
-            <MoveUpRight />
-          </span>
-        </div>}
-        <div className="hero-bottom">
-          <span>{content.brand.tagline}</span>
-          {anchors.services && (
-            <a href={anchors.services}>برای کشف بیشتر اسکرول کنید ↓</a>
-          )}
-          <span>{content.brand.name}</span>
-        </div>
-      </section>
-    );
+  const identity = templateIdentity[site.templateId];
+  if (s.type === "hero" || s.type === "services" || s.type === "about") {
+    const Composition = compositions[site.templateId];
+    return <Composition section={s} content={content} anchors={anchors} resolveLink={resolveLink} />;
+  }
   if (s.type === "stories")
     return s.items?.length ? (
-      <section className="landing-stories" id={s.id}>
-        <span>
-          {s.title}
-          <small>لحظه‌های کوچک، داستان‌های تازه</small>
-        </span>
-        <div>
+      <section className="identity-stories" id={s.id}>
+        <div className="identity-story-intro">
+          <span className="identity-kicker">{identity.stories}</span>
+          <h2>{s.title}</h2>
+          {s.subtitle && <p>{s.subtitle}</p>}
+        </div>
+        <div className="identity-story-list">
           {s.items?.map((item) => (
             <button
               type="button"
@@ -276,9 +246,9 @@ function LandingSection({
               aria-haspopup="dialog"
               onClick={() => onStory(item)}
             >
-              <span>
+              <span className="identity-story-cover">
                 {item.image && <img src={item.image} alt="" loading="lazy" />}
-                <Play size={14} />
+                <i><Play size={18} aria-hidden="true" /></i>
               </span>
               <b>{item.title}</b>
             </button>
@@ -286,80 +256,12 @@ function LandingSection({
         </div>
       </section>
     ) : null;
-  if (s.type === "services")
-    return (
-      <section className="landing-section landing-services" id={s.id}>
-        <div className="landing-section-title">
-          <div>
-            <span className="landing-eyebrow">
-              {site.templateId === "forma"
-                ? "01 / YOUR LEARNING PATH"
-                : "01 / WHAT WE DO"}
-            </span>
-            <h2>{s.title}</h2>
-            <p>{s.subtitle}</p>
-          </div>
-          {anchors.contact && (
-            <a href={anchors.contact}>
-              همه‌چیز از یک گفتگو شروع می‌شود <ArrowUpLeft size={22} />
-            </a>
-          )}
-        </div>
-        <div className="services-grid">
-          {s.items?.map((item, i) => (
-            <a
-              key={item.id}
-              className="service-card"
-              href={resolveLink(item.url, item.pageId)}
-            >
-              <div className="service-image">
-                {item.image && <img src={item.image} alt={item.title} loading="lazy" />}
-                <span>0{i + 1}</span>
-                <i>
-                  <ArrowUpLeft size={24} />
-                </i>
-              </div>
-              <h3>{item.title}</h3>
-              <p>{item.description}</p>
-            </a>
-          ))}
-        </div>
-      </section>
-    );
-  if (s.type === "about")
-    return (
-      <section className={`landing-section landing-about ${!s.image ? "landing-about-text-only" : ""}`} id={s.id}>
-        {s.image && <div className="about-image">
-          <img src={s.image} alt={s.title} loading="lazy" />
-          <span className="about-star">✳</span>
-        </div>}
-        <div>
-          <span className="landing-eyebrow">02 / OUR STORY</span>
-          <h2>{s.title}</h2>
-          <p>{s.subtitle}</p>
-          <a className="landing-button" href={resolveLink(s.buttonUrl, s.buttonPageId)}>
-            {s.buttonText || "بیشتر با هم آشنا شویم"} <ArrowUpLeft size={20} />
-          </a>
-          <div className="about-values">
-            <span>
-              نگاه تازه<small>به نیازهای شما</small>
-            </span>
-            <span>
-              تجربه شخصی<small>در هر قدم مسیر</small>
-            </span>
-            <span>
-              همراهی واقعی<small>از ابتدا تا نتیجه</small>
-            </span>
-          </div>
-        </div>
-      </section>
-    );
   if (s.type === "testimonials")
     return (
-      <section className="landing-section landing-quotes" id={s.id}>
+      <section className="landing-section landing-quotes identity-quotes" id={s.id}>
         <div className="landing-section-title">
           <h2>{s.title}</h2>
-          <span className="landing-eyebrow">GOOD WORDS, REAL PEOPLE</span>
+          <span className="identity-kicker">{identity.quotes}</span>
         </div>
         <div>
           {s.items?.map((item, i) => (
@@ -384,18 +286,19 @@ function LandingSection({
     );
   if (s.type === "faq")
     return (
-      <section className="landing-section landing-faq" id={s.id}>
+      <section className="landing-section landing-faq identity-faq" id={s.id}>
         <div>
-          <span className="landing-eyebrow">A FEW THINGS TO KNOW</span>
+          <span className="identity-kicker">{identity.faq}</span>
           <h2>{s.title}</h2>
-          <p>برای سوال‌های بیشتر، با ما در ارتباط باشید.</p>
+          <p>{s.subtitle || "برای سوال‌های بیشتر، با ما در ارتباط باشید."}</p>
         </div>
         <div>
-          {s.items?.map((item) => (
+          {s.items?.map((item, index) => (
             <details key={item.id}>
               <summary>
-                {item.title}
-                <Plus size={20} />
+                <span className="identity-faq-number" aria-hidden="true">{(index + 1).toLocaleString("fa-IR", { minimumIntegerDigits: 2 })}</span>
+                <span>{item.title}</span>
+                <Plus size={20} aria-hidden="true" />
               </summary>
               <p>{item.description}</p>
             </details>
@@ -405,7 +308,7 @@ function LandingSection({
     );
   if (s.type === "instagram")
     return (
-      <section className="landing-section" id={s.id}>
+      <section className="landing-section identity-social" id={s.id}>
         <div className="landing-section-title">
           <h2>{s.title}</h2>
           <Instagram />
@@ -434,10 +337,10 @@ function LandingSection({
   if (s.type === "blog") {
     const items = posts.length ? posts : s.items || [];
     return items.length ? (
-      <section className="landing-section" id={s.id}>
+      <section className="landing-section identity-journal" id={s.id}>
         <div className="landing-section-title">
           <h2>{s.title}</h2>
-          <span className="landing-eyebrow">STORIES & INSIGHTS</span>
+          <span className="identity-kicker">{identity.journal}</span>
         </div>
         <div className="blog-grid">
           {items.map((item) => (
@@ -496,12 +399,12 @@ function LandingSection({
   }
   if (s.type === "contact")
     return (
-      <section className="landing-section landing-contact" id={s.id}>
+      <section className="landing-section landing-contact identity-contact" id={s.id}>
         <div>
-          <span className="landing-eyebrow">LET’S MAKE SOMETHING GOOD</span>
+          <span className="identity-kicker">{identity.contact}</span>
           <h2>{s.title}</h2>
           <p>{s.subtitle}</p>
-          <span className="contact-decoration">↖</span>
+          <span className="contact-decoration" aria-hidden="true">{identity.symbol}</span>
         </div>
         <ContactForm
           key={`${site.id}-${s.id}-${forms.map((form) => form.id).join("-")}`}

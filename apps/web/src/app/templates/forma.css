@@ -1,0 +1,278 @@
+.landing-forma {
+  --forma-paper: #f7f4e9;
+  --forma-ink: #292338;
+  --forma-purple: color-mix(in srgb, var(--site-accent, #6347b5) 70%, #292338);
+  --forma-button: color-mix(in srgb, var(--site-accent, #6347b5) 32%, #292338);
+  --forma-lilac: #e5dbfa;
+  --forma-orange: #f5a16e;
+  --forma-green: #d8e9a7;
+}
+.landing-forma :is(.forma-workbook, .forma-syllabus, .forma-collective) {
+  width: min(100%, var(--page-width, 1440px));
+  margin-inline: auto;
+  padding-inline: var(--page-gutter, 6vw);
+  color: var(--forma-ink);
+  overflow-wrap: anywhere;
+}
+.landing-forma :is(.forma-workbook, .forma-syllabus, .forma-collective) :is(h1, h2, h3, p, a, div, figure) {
+  min-width: 0;
+}
+.landing-forma .forma-workbook {
+  padding-block: 22px 76px;
+  background: var(--forma-paper);
+}
+.landing-forma .forma-workbook-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding-block: 16px;
+  border-block: 1px solid #29233836;
+  font-size: 12px;
+}
+.landing-forma .forma-workbook-topline > span:first-child,
+.landing-forma .forma-section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.landing-forma .forma-workbook-heading {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr) 90px;
+  gap: 28px;
+  align-items: center;
+  padding-block: 40px 44px;
+}
+.landing-forma .forma-workbook-heading h1 {
+  text-align: center;
+  font-size: clamp(38px, 5.6vw, 80px);
+  font-weight: 800;
+  line-height: 1.65;
+  letter-spacing: -2.2px;
+  text-wrap: balance;
+}
+.landing-forma .forma-workbook-heading h1 > span { display: block; }
+.landing-forma .forma-workbook-heading h1 > span:nth-child(2n) { color: var(--forma-button); }
+.landing-forma .forma-workbook-sticker {
+  display: grid;
+  place-items: center;
+  width: 86px;
+  height: 86px;
+  border-radius: 50%;
+  background: var(--forma-orange);
+  transform: rotate(-12deg);
+  align-self: start;
+  margin-top: 18px;
+}
+.landing-forma .forma-workbook-sticker svg { width: 53px; height: 53px; }
+.landing-forma .forma-workbook-arrow {
+  align-self: end;
+  padding-bottom: 12px;
+  color: var(--forma-purple);
+  transform: rotate(-12deg);
+}
+.landing-forma .forma-workbook-arrow svg { width: 84px; height: 84px; stroke-width: 1.2; }
+.landing-forma .forma-study-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr) minmax(160px, 0.48fr);
+  gap: 18px;
+  align-items: stretch;
+}
+.landing-forma .forma-study-note {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 22px;
+  min-height: 330px;
+  padding: 30px 28px;
+  border: 1px solid #bdb0d0;
+  background: var(--forma-lilac);
+  border-radius: 4px 4px 4px 34px;
+  background-image: repeating-linear-gradient(transparent 0, transparent 37px, #6347b511 38px, transparent 39px);
+}
+.landing-forma .forma-note-corner {
+  position: absolute;
+  inset-inline-end: -1px;
+  top: -1px;
+  width: 33px;
+  height: 33px;
+  background: linear-gradient(45deg, #bca4e5 49%, var(--forma-paper) 50%);
+}
+.landing-forma .forma-note-icon { color: var(--forma-purple); }
+.landing-forma .forma-study-note > p { font-size: 16px; line-height: 2.05; }
+.landing-forma .forma-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 49px;
+  max-width: 100%;
+  padding: 12px 19px;
+  background: var(--forma-button);
+  color: #fff;
+  border: 1px solid var(--forma-button);
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.9;
+  transition: background 160ms ease, box-shadow 160ms ease;
+}
+.landing-forma .forma-action:hover { background: color-mix(in srgb, var(--forma-button) 85%, #292338); box-shadow: 3px 3px 0 #292338; }
+.landing-forma .forma-action:focus-visible { outline-color: var(--forma-ink); }
+.landing-forma .forma-study-photo {
+  position: relative;
+  padding: 9px 9px 30px;
+  border: 1px solid #c7c2b7;
+  background: #fffdf7;
+  transform: rotate(-2deg);
+  align-self: stretch;
+}
+.landing-forma .forma-study-photo > img { width: 100%; height: 100%; min-height: 280px; object-fit: cover; }
+.landing-forma .forma-photo-tape {
+  position: absolute;
+  width: 94px;
+  height: 24px;
+  background: #efe1bcbf;
+  top: -10px;
+  left: calc(50% - 47px);
+  transform: rotate(4deg);
+}
+.landing-forma .forma-study-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 28px;
+  padding: 26px 22px;
+  background: var(--forma-orange);
+  border-radius: 80px 80px 8px 8px;
+  border: 1px solid #dd8e5d;
+}
+.landing-forma .forma-study-tab > svg { width: 58px; height: 58px; margin-inline: auto; margin-top: 13px; }
+.landing-forma .forma-study-tab > span { font-size: 24px; font-weight: 750; line-height: 1.75; }
+.landing-forma .forma-study-tab > a { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 9px; font-size: 12px; border-top: 1px solid #29233855; padding-top: 17px; }
+.landing-forma .forma-study-tab > a:hover { text-decoration: underline; text-underline-offset: 5px; }
+.landing-forma .forma-study-board-without-image { grid-template-columns: minmax(0, 1fr) minmax(170px, 0.32fr); }
+.landing-forma .forma-study-board-without-image .forma-study-note { min-height: 275px; }
+.landing-forma .forma-workbook-notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 20px; padding: 28px 0 0; margin: 0; list-style: none; }
+.landing-forma .forma-workbook-notes li { display: flex; gap: 14px; padding-top: 15px; border-top: 1px solid #29233844; }
+.landing-forma .forma-workbook-notes img { width: 56px; height: 56px; object-fit: cover; border-radius: 4px; }
+.landing-forma .forma-workbook-notes a { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; }
+.landing-forma .forma-workbook-notes p { font-size: 12px; margin-top: 5px; }
+.landing-forma .forma-syllabus { padding-block: 82px 90px; background: var(--forma-paper); }
+.landing-forma .forma-syllabus-heading { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.6fr); gap: 40px; align-items: end; margin-bottom: 38px; }
+.landing-forma .forma-section-label { font-size: 12px; margin-bottom: 19px; }
+.landing-forma .forma-syllabus-heading h2 { font-size: clamp(30px, 3.1vw, 45px); font-weight: 750; line-height: 1.7; max-width: 650px; }
+.landing-forma .forma-syllabus-intro { padding-bottom: 5px; }
+.landing-forma .forma-syllabus-intro > p { font-size: 14px; color: #625b6b; line-height: 2; }
+.landing-forma .forma-text-link { display: inline-flex; gap: 16px; align-items: center; margin-top: 17px; font-size: 13px; font-weight: 700; text-decoration: underline; text-underline-offset: 5px; }
+.landing-forma .forma-syllabus-cover { width: 100%; max-height: 330px; object-fit: cover; margin-bottom: 24px; border-radius: 8px; }
+.landing-forma .forma-syllabus-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.landing-forma .forma-syllabus-row {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  min-height: 159px;
+  padding: 22px 26px;
+  border: 1px solid #c9bed7;
+  border-radius: 10px;
+  background: var(--forma-lilac);
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.landing-forma .forma-syllabus-list > li:nth-child(3n + 2) .forma-syllabus-row { background: #ecebdf; border-color: #c8c8b9; }
+.landing-forma .forma-syllabus-list > li:nth-child(3n) .forma-syllabus-row { background: var(--forma-green); border-color: #b8c891; }
+.landing-forma a.forma-syllabus-row:hover { border-color: var(--forma-purple); box-shadow: 4px 4px 0 var(--forma-purple); }
+.landing-forma .forma-syllabus-number { font-size: 33px; line-height: 1; width: 62px; flex-shrink: 0; font-weight: 800; color: var(--forma-button); align-self: flex-start; padding-top: 12px; }
+.landing-forma .forma-syllabus-copy { flex: 1; }
+.landing-forma .forma-syllabus-copy h3 { font-size: clamp(21px, 2vw, 28px); font-weight: 750; line-height: 1.7; }
+.landing-forma .forma-syllabus-copy p { font-size: 13px; margin-top: 7px; color: #5c5567; }
+.landing-forma .forma-syllabus-image { width: 154px; height: 110px; object-fit: cover; border-radius: 5px; }
+.landing-forma .forma-syllabus-arrow { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 47px; height: 47px; background: #fffdf4; border: 1px solid #292338; border-radius: 50%; }
+.landing-forma a.forma-syllabus-arrow:hover { color: #fff; background: var(--forma-purple); }
+.landing-forma .forma-collective { padding-block: 8px 90px; background: var(--forma-paper); }
+.landing-forma .forma-collective-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr); gap: 44px 64px; padding: 58px; background: var(--forma-button); color: #fffaf1; border-radius: 12px 12px 60px 12px; }
+.landing-forma .forma-collective-copy { padding-top: 4px; }
+.landing-forma .forma-collective-copy h2 { font-size: clamp(31px, 3.3vw, 47px); font-weight: 750; line-height: 1.75; }
+.landing-forma .forma-collective-copy > p { margin-top: 23px; font-size: 15px; line-height: 2.1; color: #efe7ff; }
+.landing-forma .forma-action-light { background: var(--forma-green); color: var(--forma-ink); border-color: var(--forma-green); margin-top: 29px; }
+.landing-forma .forma-action-light:hover { background: #e8f3c8; box-shadow: 4px 4px 0 #302149; }
+.landing-forma .forma-action-light:focus-visible { outline-color: #fffaf1; }
+.landing-forma .forma-collective-photo { align-self: center; transform: rotate(3deg); background: #fffaf1; color: var(--forma-ink); padding: 10px; border-radius: 5px; }
+.landing-forma .forma-collective-photo > img { width: 100%; aspect-ratio: 1.08; object-fit: cover; border-radius: 2px; }
+.landing-forma .forma-collective-photo figcaption { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 17px 10px 10px; font-weight: 700; font-size: 14px; }
+.landing-forma .forma-collective-photo figcaption svg { width: 30px; height: 30px; color: var(--forma-purple); }
+.landing-forma .forma-collective-without-image { grid-template-columns: minmax(0, 1fr); }
+.landing-forma .forma-collective-without-image .forma-collective-copy { max-width: 780px; }
+.landing-forma .forma-collective-steps { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 28px; list-style: none; margin: 0; padding: 0; }
+.landing-forma .forma-collective-steps li { position: relative; border-top: 1px solid #ffffff66; padding-top: 24px; }
+.landing-forma .forma-collective-node { display: inline-grid; place-items: center; width: 36px; height: 36px; border: 1px solid #fffaf1; border-radius: 50%; margin-bottom: 16px; font-size: 11px; }
+.landing-forma .forma-collective-steps h3 { font-size: 18px; font-weight: 700; }
+.landing-forma .forma-collective-steps p { font-size: 13px; color: #efe7ff; margin-top: 8px; }
+.landing-forma .forma-collective-steps h3 a { display: inline-flex; align-items: center; gap: 10px; }
+.landing-forma .forma-collective-steps img { width: 100%; height: 150px; object-fit: cover; border-radius: 5px; margin-bottom: 15px; }
+.landing-forma .forma-collective-footer { grid-column: 1 / -1; display: flex; align-items: center; gap: 26px; padding-top: 25px; border-top: 1px solid #ffffff55; font-size: 12px; }
+.landing-forma .forma-connected-line { display: flex; justify-content: space-between; flex: 1; min-width: 50px; height: 1px; background: #fffaf188; }
+.landing-forma .forma-connected-line i { width: 9px; height: 9px; background: var(--forma-green); border-radius: 50%; transform: translateY(-4px); }
+@media (max-width: 1000px) {
+  .landing-forma .forma-workbook-heading { grid-template-columns: 58px minmax(0, 1fr) 58px; gap: 14px; }
+  .landing-forma .forma-workbook-sticker { width: 56px; height: 56px; }
+  .landing-forma .forma-workbook-sticker svg { width: 35px; height: 35px; }
+  .landing-forma .forma-workbook-arrow svg { width: 56px; height: 56px; }
+  .landing-forma .forma-study-board { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .landing-forma .forma-study-tab { grid-column: 1 / -1; flex-direction: row; align-items: center; padding: 16px 22px; gap: 20px; border-radius: 8px; }
+  .landing-forma .forma-study-tab > svg { width: 38px; height: 38px; margin: 0; }
+  .landing-forma .forma-study-tab > span { flex: 1; font-size: 20px; }
+  .landing-forma .forma-study-tab > a { width: auto; border-top: 0; padding-top: 0; }
+  .landing-forma .forma-study-board-without-image { grid-template-columns: minmax(0, 1fr); }
+  .landing-forma .forma-collective-panel { padding: 38px; gap: 36px; }
+  .landing-forma .forma-syllabus-row { gap: 21px; }
+  .landing-forma .forma-syllabus-image { width: 115px; height: 95px; }
+}
+@media (max-width: 680px) {
+  .landing-forma :is(.forma-workbook, .forma-syllabus, .forma-collective) { padding-inline: 22px; }
+  .landing-forma .forma-workbook { padding-block: 12px 42px; }
+  .landing-forma .forma-workbook-topline { font-size: 10px; gap: 14px; padding-block: 12px; }
+  .landing-forma .forma-workbook-topline > span:first-child { gap: 7px; }
+  .landing-forma .forma-workbook-heading { position: relative; display: block; padding-block: 32px 29px; }
+  .landing-forma .forma-workbook-heading h1 { font-size: clamp(29px, 7.8vw, 49px); letter-spacing: -0.7px; line-height: 1.8; }
+  .landing-forma .forma-workbook-sticker { width: 31px; height: 31px; margin: 0 0 9px; }
+  .landing-forma .forma-workbook-sticker svg { width: 21px; height: 21px; }
+  .landing-forma .forma-workbook-arrow { display: none; }
+  .landing-forma .forma-study-board { grid-template-columns: minmax(0, 1fr); gap: 17px; }
+  .landing-forma .forma-study-note { min-height: 0; padding: 24px 23px; gap: 21px; }
+  .landing-forma .forma-study-note > p { font-size: 14px; }
+  .landing-forma .forma-action { font-size: 12px; padding: 11px 15px; min-height: 48px; }
+  .landing-forma .forma-study-photo { transform: rotate(-1deg); padding-bottom: 18px; }
+  .landing-forma .forma-study-photo > img { height: 230px; min-height: 0; }
+  .landing-forma .forma-study-tab { display: grid; grid-template-columns: 35px minmax(0, 1fr); gap: 14px; padding: 18px 20px; }
+  .landing-forma .forma-study-tab > svg { width: 33px; height: 33px; }
+  .landing-forma .forma-study-tab > span { font-size: 18px; }
+  .landing-forma .forma-study-tab > a { grid-column: 1 / -1; border-top: 1px solid #29233844; padding-top: 12px; min-height: 44px; }
+  .landing-forma .forma-study-board-without-image .forma-study-note { min-height: 0; }
+  .landing-forma .forma-syllabus { padding-block: 44px 52px; }
+  .landing-forma .forma-syllabus-heading { grid-template-columns: minmax(0, 1fr); gap: 18px; margin-bottom: 25px; }
+  .landing-forma .forma-section-label { font-size: 10px; margin-bottom: 12px; }
+  .landing-forma .forma-syllabus-heading h2 { font-size: 29px; }
+  .landing-forma .forma-syllabus-intro > p { font-size: 13px; }
+  .landing-forma .forma-syllabus-row { display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 17px 16px; padding: 21px; min-height: 0; }
+  .landing-forma .forma-syllabus-number { grid-column: 1; grid-row: 1; width: auto; padding: 0; font-size: 26px; }
+  .landing-forma .forma-syllabus-arrow { grid-column: 2; grid-row: 1; width: 44px; height: 44px; }
+  .landing-forma .forma-syllabus-copy { grid-column: 1 / -1; grid-row: 2; }
+  .landing-forma .forma-syllabus-copy h3 { font-size: 21px; }
+  .landing-forma .forma-syllabus-copy p { font-size: 12px; }
+  .landing-forma .forma-syllabus-image { grid-column: 1 / -1; grid-row: 3; width: 100%; height: 158px; }
+  .landing-forma .forma-collective { padding-block: 4px 52px; }
+  .landing-forma .forma-collective-panel { grid-template-columns: minmax(0, 1fr); gap: 30px; padding: 29px 23px; border-radius: 10px 10px 37px 10px; }
+  .landing-forma .forma-collective-copy h2 { font-size: 29px; }
+  .landing-forma .forma-collective-copy > p { font-size: 13px; margin-top: 17px; }
+  .landing-forma .forma-collective-photo { transform: rotate(1deg); }
+  .landing-forma .forma-collective-photo figcaption { font-size: 12px; }
+  .landing-forma .forma-collective-footer { gap: 13px; font-size: 10px; }
+  .landing-forma .forma-collective-footer > span:first-child { flex: 1; }
+  .landing-forma .forma-connected-line { flex: 0 0 45px; min-width: 45px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-forma :is(.forma-action, .forma-syllabus-row) { transition: none; }
+}

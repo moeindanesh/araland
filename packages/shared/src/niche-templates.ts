@@ -1,18 +1,18 @@
 import type { SectionItem, SiteContent } from "./index";
 
-const photo = (id: string) => `https://images.unsplash.com/${id}?w=1000&q=80`;
+const photo = (id: string) => `/images/templates/${id}.webp`;
 
 /** These are editable template starting points, never verified business claims. */
 export function createNicheContent(id: "pulse" | "luma"): SiteContent {
   const fitness = id === "pulse";
   const services: SectionItem[] = fitness ? [
-    { id: "strength", title: "قدرت، از پایه", description: "تمرین قدرتی؛ متناسب با تجربه، هدف و ریتم زندگی تو.", image: photo("photo-1534438327276-14e5300c3a48"), url: "#contact" },
-    { id: "balance", title: "تعادل و انعطاف", description: "فضایی برای حرکت آگاهانه، تمرکز و ارتباط دوباره با بدن.", image: photo("photo-1544367567-0f2fcb009e0b"), url: "#contact" },
+    { id: "strength", title: "قدرت، از پایه", description: "تمرین قدرتی؛ متناسب با تجربه، هدف و ریتم زندگی تو.", image: photo("pulse-strength"), url: "#contact" },
+    { id: "balance", title: "تعادل و انعطاف", description: "فضایی برای حرکت آگاهانه، تمرکز و ارتباط دوباره با بدن.", image: photo("pulse-balance"), url: "#contact" },
     { id: "coaching", title: "همراهی شخصی", description: "از شناخت نقطه شروع تا پیگیری مسیر؛ قدم‌به‌قدم کنار تو.", image: "/images/templates/pulse-hero.webp", url: "#contact" },
   ] : [
-    { id: "skin", title: "شناخت و مراقبت پوست", description: "شروع مراقبت با گفتگو درباره نیازها، سابقه و انتظارات شما.", image: photo("photo-1570172619644-dfd03ed5d881"), url: "#contact" },
+    { id: "skin", title: "شناخت و مراقبت پوست", description: "شروع مراقبت با گفتگو درباره نیازها، سابقه و انتظارات شما.", image: photo("bloom-care"), url: "#contact" },
     { id: "aesthetics", title: "مشاوره زیبایی", description: "فرصتی برای پرسیدن، شناخت گزینه‌ها و تصمیم‌گیری آگاهانه.", image: "/images/templates/luma-hero.webp", url: "#contact" },
-    { id: "followup", title: "مراقبت و پیگیری", description: "راه ارتباطی روشن برای هماهنگی مراجعه و پرسش‌های بعدی.", image: photo("photo-1629909613654-28e377c37b09"), url: "#contact" },
+    { id: "followup", title: "مراقبت و پیگیری", description: "راه ارتباطی روشن برای هماهنگی مراجعه و پرسش‌های بعدی.", image: photo("luma-space"), url: "#contact" },
   ];
   return {
     brand: {
@@ -43,7 +43,7 @@ export function createNicheContent(id: "pulse" | "luma"): SiteContent {
         subtitle: fitness
           ? "حرکت خوب، از شناخت خودت شروع می‌شود. هدف ما ساختن فضایی است که در آن با هر نقطه شروعی، برای ادامه‌دادن انگیزه داشته باشی. برای آشنایی با مربیان، فضای تمرین و نحوه همراهی با ما گفتگو کن."
           : "هر چهره داستان خودش را دارد. پیش از هر انتخاب، باید برای شناخت انتظارها، توضیح گزینه‌ها و پرسش‌های شما وقت گذاشت. برای آشنایی با تیم، جزئیات خدمات و هماهنگی مراجعه با ما در ارتباط باشید.",
-        image: fitness ? photo("photo-1517836357463-d25dfeac3438") : photo("photo-1629909613654-28e377c37b09"),
+        image: fitness ? photo("pulse-strength") : photo("luma-space"),
         buttonText: fitness ? "از مسیرت بگو" : "با ما گفتگو کنید",
         buttonUrl: "#contact",
       },

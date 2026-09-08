@@ -164,8 +164,7 @@ export const templates: {
     category: "استودیو و خدمات خلاق",
     description: "جایی برای ایده‌هایی که دیده می‌شوند.",
     color: "#245b49",
-    image:
-      "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=1400&q=85",
+    image: "/images/templates/orbit-hero.webp",
     tags: ["مینیمال", "پروژه‌محور"],
   },
   {
@@ -175,8 +174,7 @@ export const templates: {
     category: "زیبایی و سلامت",
     description: "یک تجربه آرام، از اولین نگاه.",
     color: "#7e876b",
-    image:
-      "https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=1400&q=85",
+    image: "/images/templates/bloom-hero.webp",
     tags: ["لطیف", "معرفی خدمات"],
   },
   {
@@ -185,9 +183,8 @@ export const templates: {
     englishName: "FORMA",
     category: "آموزش و مشاوره",
     description: "شروع بزرگ بعدی، همین‌جاست.",
-    color: "#d5f778",
-    image:
-      "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1400&q=85",
+    color: "#6347b5",
+    image: "/images/templates/forma-hero.webp",
     tags: ["جسور", "دوره و آموزش"],
   },
   {
@@ -211,7 +208,7 @@ export const templates: {
     tags: ["آرام و دقیق", "معرفی خدمات و مشاوره"],
   },
 ];
-const image = (id: string) => `https://images.unsplash.com/${id}?w=1200&q=85`;
+const image = (id: string) => `/images/templates/${id}.webp`;
 export function createContent(templateId: TemplateId): SiteContent {
   if (templateId === "pulse" || templateId === "luma") return createNicheContent(templateId);
   const t = templates.find((t) => t.id === templateId) ?? templates[0];
@@ -240,19 +237,19 @@ export function createContent(templateId: TemplateId): SiteContent {
             id: "s1",
             title: "معماری داخلی",
             description: "فضایی که شخصیت شما را روایت می‌کند.",
-            image: image("photo-1600607687920-4e2a09cf159d"),
+            image: image("orbit-hero"),
           },
           {
             id: "s2",
             title: "طراحی فضاهای کاری",
             description: "برای ایده‌های تازه، جای تازه می‌سازیم.",
-            image: image("photo-1497366754035-f200968a6e72"),
+            image: image("orbit-workspace"),
           },
           {
             id: "s3",
             title: "طراحی و چیدمان",
             description: "زیبایی در کوچک‌ترین جزئیات.",
-            image: image("photo-1600210492493-0946911123ea"),
+            image: image("orbit-detail"),
           },
         ]
       : templateId === "bloom"
@@ -261,19 +258,19 @@ export function createContent(templateId: TemplateId): SiteContent {
               id: "s1",
               title: "مراقبت از پوست",
               description: "درخشش طبیعی با مراقبت اختصاصی.",
-              image: image("photo-1570172619644-dfd03ed5d881"),
+              image: image("bloom-care"),
             },
             {
               id: "s2",
               title: "ماساژ و آرامش",
               description: "لحظه‌ای فقط برای خودتان.",
-              image: image("photo-1544161515-4ab6ce6db874"),
+              image: image("bloom-massage"),
             },
             {
               id: "s3",
               title: "مشاوره زیبایی",
               description: "بهترین مسیر برای زیبایی منحصربه‌فرد شما.",
-              image: image("photo-1540555700478-4be289fbecef"),
+              image: image("bloom-hero"),
             },
           ]
         : [
@@ -281,19 +278,19 @@ export function createContent(templateId: TemplateId): SiteContent {
               id: "s1",
               title: "طراحی تجربه کاربری",
               description: "از ایده تا محصول، با پروژه‌های واقعی.",
-              image: image("photo-1559028012-481c04fa702d"),
+              image: image("forma-workshop"),
             },
             {
               id: "s2",
               title: "استراتژی برند",
               description: "برندی بساز که در ذهن‌ها بماند.",
-              image: image("photo-1522202176988-66273c2fd55f"),
+              image: image("forma-hero"),
             },
             {
               id: "s3",
               title: "رشد کسب‌وکار",
               description: "از دانش تا تصمیم‌های تاثیرگذار.",
-              image: image("photo-1522071820081-009f0129c71c"),
+              image: image("orbit-workspace"),
             },
           ];
   return {
