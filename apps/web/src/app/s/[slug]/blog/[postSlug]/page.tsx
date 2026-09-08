@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowRight, ArrowUpLeft } from "lucide-react";
-import { loadPublishedSite } from "../../../_lib/public-site";
+import { loadPublishedSite, publicSiteContext } from "../../../_lib/public-site";
+import { PublicSiteHeader, PublicSiteFooter } from "@/components/public-site-chrome";
+import { createSiteLinks } from "@/lib/site-links";
 import styles from "./article.module.css";
 
 type Props = { params: Promise<{ slug: string; postSlug: string }> };
@@ -10,45 +12,45 @@ export const dynamic = "force-dynamic";
 async function loadArticle(params: Props["params"]) {
   const { slug, postSlug } = await params;
   const { site, posts } = await loadPublishedSite(slug);
+  const context = await publicSiteContext(slug);
   const post = posts.find((post) => post.slug === postSlug && post.published);
   if (!post) notFound();
-  return { site, post };
+  return { site, post, context };
 }
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { site, post } = await loadArticle(params);
+  const { site, post, context } = await loadArticle(params);
   return {
     title: { absolute: `${post.title} | ${site.name}` },
     description: post.excerpt,
+    alternates: { canonical: context.canonical(`/blog/${encodeURIComponent(post.slug)}`) },
     openGraph: {
       title: post.title,
       description: post.excerpt,
       type: "article",
       locale: "fa_IR",
       publishedTime: post.createdAt,
+      url: context.canonical(`/blog/${encodeURIComponent(post.slug)}`),
       ...(post.cover ? { images: [{ url: post.cover, alt: post.title }] } : {}),
     },
   };
 }
 export default async function ArticlePage({ params }: Props) {
-  const { site, post } = await loadArticle(params);
+  const { site, post, context } = await loadArticle(params);
   const content = site.published!;
+  const links = createSiteLinks(content, context.siteBasePath, undefined, true, true);
   return (
     <div
-      className={`${styles.page} ${site.templateId === "forma" ? styles.dark : site.templateId === "bloom" ? styles.soft : ""}`}
+      className={`landing landing-${site.templateId} ${styles.page} ${site.templateId === "forma" ? styles.dark : site.templateId === "bloom" ? styles.soft : ""}`}
       style={
         {
           "--article-accent": content.brand.primaryColor,
+          "--site-accent": content.brand.primaryColor,
         } as React.CSSProperties
       }
     >
-      <nav className={styles.nav}>
-        <Link href={`/s/${site.slug}`} className={styles.brand}>
-          {content.brand.name}
-          <span>®</span>
-        </Link>
-        <Link href={`/s/${site.slug}#blog`}>
-          بازگشت به خواندنی‌ها <ArrowRight size={18} />
-        </Link>
+      <PublicSiteHeader site={site} content={content} siteBasePath={context.siteBasePath} hasPosts awayFromHome />
+      <nav className="landing-page-intro landing-breadcrumb" aria-label="مسیر مقاله">
+        <Link href={links.homeAnchors.blog || links.homeHref}>بازگشت به خواندنی‌ها <ArrowRight size={18} /></Link>
       </nav>
       <article className={styles.article}>
         <header>
@@ -92,17 +94,12 @@ export default async function ArticlePage({ params }: Props) {
             <span>این گفتگو ادامه دارد</span>
             <h2>از یک ایده، به یک شروع تازه.</h2>
           </div>
-          <Link href={`/s/${site.slug}#contact`}>
+          <Link href={links.homeAnchors.contact || links.homeHref}>
             با ما در ارتباط باشید <ArrowUpLeft size={21} />
           </Link>
         </aside>
       </article>
-      <footer className={styles.footer}>
-        <span>{content.brand.name}</span>
-        <Link href={`/s/${site.slug}`}>
-          بازگشت به سایت <ArrowRight size={16} />
-        </Link>
-      </footer>
+      <PublicSiteFooter site={site} content={content} siteBasePath={context.siteBasePath} hasPosts awayFromHome />
     </div>
   );
 }

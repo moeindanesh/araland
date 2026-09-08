@@ -15,6 +15,10 @@ import {
   createInitialContent,
   TemplateId,
   normalizeContent,
+  SiteContent,
+  SitePage,
+  SectionItem,
+  isValidPageSlug,
 } from "@araland/shared";
 import {
   ArrowRight,
@@ -35,13 +39,29 @@ import {
   LayoutTemplate,
   Settings2,
 } from "lucide-react";
-import { ActionButton, Button, Input, Notice, Modal, TextArea } from "./ui";
+import {
+  PageManager,
+  CreatePageDialog,
+  InternalPageLink,
+} from "./page-manager";
+import {
+  ActionButton,
+  Button,
+  Input,
+  Notice,
+  Modal,
+  TextArea,
+  SelectField,
+} from "./ui";
 import { request, json, getToken } from "@/lib/client";
 type EditorIssue = {
   field: string;
   message: string;
   sectionId?: string;
   itemId?: string;
+  pageId?: string;
+  tab?: string;
+  menuPlacement?: "header" | "footer";
 };
 function editableSnapshot(site: Site) {
   return JSON.stringify({
@@ -54,10 +74,57 @@ function editableSnapshot(site: Site) {
 function draftIssue(site: Site): EditorIssue | null {
   if (!site.draft.brand.name.trim())
     return { field: "editor-brand-name", message: "نام برند را وارد کن." };
-  const imagePattern = /^(https?:\/\/[^\s]+|\/api\/media\/[^\s]+)$/;
+  const imagePattern = /^(https?:\/\/[^\s]+|\/api\/media\/[^\s]+|\/images\/templates\/[a-z0-9-]+\.webp)$/;
   const linkPattern =
     /^(https?:\/\/[^\s]+|mailto:[^\s]+|tel:[+0-9 -]+|\/(?!\/)[^\s]*|#[^\s]*)$/;
-  for (const section of site.draft.sections) {
+  const pages = site.draft.pages || [];
+  for (const page of pages) {
+    if (!page.title.trim())
+      return {
+        field: "page-title",
+        message: "عنوان صفحه را وارد کن.",
+        pageId: page.id,
+        tab: "pages",
+      };
+    if (
+      !isValidPageSlug(page.slug) ||
+      pages.some((other) => other.id !== page.id && other.slug === page.slug)
+    )
+      return {
+        field: "page-slug",
+        message:
+          "آدرس صفحه نامعتبر یا تکراری است؛ از حروف انگلیسی، عدد و خط تیره استفاده کن.",
+        pageId: page.id,
+        tab: "pages",
+      };
+  }
+  for (const placement of ["header", "footer"] as const) {
+    for (const item of site.draft.navigation?.[placement] || []) {
+      if (!item.label.trim())
+        return {
+          field: `menu-${placement}-${item.id}-label`,
+          message: "متن لینک منو را وارد کن.",
+          tab: "pages",
+          menuPlacement: placement,
+        };
+      if (
+        item.target.type === "url" &&
+        (!linkPattern.test(item.target.url) || item.target.url === "https://")
+      )
+        return {
+          field: `menu-${placement}-${item.id}-url`,
+          message: "نشانی لینک منو معتبر نیست.",
+          tab: "pages",
+          menuPlacement: placement,
+        };
+    }
+  }
+  for (const { section, pageId } of [
+    ...site.draft.sections.map((section) => ({ section, pageId: "" })),
+    ...pages.flatMap((page) =>
+      page.sections.map((section) => ({ section, pageId: page.id })),
+    ),
+  ]) {
     const context = `بخش «${section.title || sectionLabels[section.type]}»`;
     const fields = [
       { field: `${section.id}-image`, value: section.image, image: true },
@@ -89,6 +156,7 @@ function draftIssue(site: Site): EditorIssue | null {
         continue;
       return {
         field: field.field,
+        pageId,
         sectionId: section.id,
         itemId: "itemId" in field ? field.itemId : undefined,
         message: field.image
@@ -103,6 +171,15 @@ export function Editor({ id }: { id: string }) {
   const demo = id === "demo";
   const [site, setSite] = useState<Site>(createDemoSite());
   const [active, setActive] = useState("hero");
+  const [selectedPageId, setSelectedPageId] = useState("");
+  const [linkedPage, setLinkedPage] = useState<{
+    sectionId: string;
+    item: SectionItem;
+  } | null>(null);
+  const selectedPage = site.draft.pages?.find(
+    (page) => page.id === selectedPageId,
+  );
+  const sections = selectedPage?.sections || site.draft.sections;
   const [tab, setTab] = useState("content");
   const [device, setDevice] = useState("desktop");
   const [operation, setOperation] = useState<
@@ -149,6 +226,8 @@ export function Editor({ id }: { id: string }) {
     setMessage("");
     setConfirmation(null);
     setAdd(false);
+    setSelectedPageId("");
+    setLinkedPage(null);
     allowNavigation.current = false;
     if (demo) {
       const initial = createDemoSite();
@@ -248,13 +327,14 @@ export function Editor({ id }: { id: string }) {
     frame.current?.contentWindow?.postMessage(
       {
         type: "araland-preview",
+        selectedPageId,
         site,
         forms: resources.forms,
         posts: resources.posts,
       },
       location.origin,
     );
-  useEffect(sendPreview, [site, resources]);
+  useEffect(sendPreview, [site, resources, selectedPageId]);
   useEffect(() => {
     const ready = (event: MessageEvent) => {
       if (
@@ -266,7 +346,25 @@ export function Editor({ id }: { id: string }) {
     };
     window.addEventListener("message", ready);
     return () => window.removeEventListener("message", ready);
-  }, [site, resources]);
+  }, [site, resources, selectedPageId]);
+  useEffect(() => {
+    const navigatePreview = (event: MessageEvent) => {
+      if (
+        event.origin !== location.origin ||
+        event.source !== frame.current?.contentWindow ||
+        event.data?.type !== "araland-preview-page"
+      )
+        return;
+      const pageId = event.data.pageId;
+      if (
+        typeof pageId === "string" &&
+        (pageId === "" || site.draft.pages?.some((page) => page.id === pageId))
+      )
+        selectPage(pageId);
+    };
+    window.addEventListener("message", navigatePreview);
+    return () => window.removeEventListener("message", navigatePreview);
+  }, [site.draft.pages]);
   useEffect(() => {
     const fn = (e: BeforeUnloadEvent) => {
       if ((dirty || busy) && !allowNavigation.current) {
@@ -294,7 +392,71 @@ export function Editor({ id }: { id: string }) {
     setError("");
     setIssue(null);
   }
-  const selected = site.draft.sections.find((s) => s.id === active);
+  function selectPage(pageId: string) {
+    setSelectedPageId(pageId);
+    setActive(
+      (pageId
+        ? site.draft.pages?.find((page) => page.id === pageId)?.sections
+        : site.draft.sections)?.[0]?.id || "",
+    );
+    setExpandedItems(new Set());
+    setIssue(null);
+  }
+  useEffect(() => {
+    if (selectedPageId && !selectedPage) return;
+    if (!sections.some((section) => section.id === active))
+      setActive(sections[0]?.id || "");
+  }, [selectedPageId, sections, active, selectedPage]);
+  function withSections(
+    content: SiteContent,
+    transform: (sections: Section[]) => Section[],
+  ): SiteContent {
+    if (selectedPageId)
+      return {
+        ...content,
+        pages: content.pages?.map((page) =>
+          page.id === selectedPageId
+            ? { ...page, sections: transform(page.sections) }
+            : page,
+        ),
+      };
+    const next = transform(content.sections);
+    return {
+      ...content,
+      sections: next,
+      ...(content.navigation
+        ? {
+            navigation: {
+              header: content.navigation.header.filter(
+                (item) =>
+                  item.target.type !== "section" ||
+                  next.some(
+                    (section) =>
+                      section.id ===
+                      (item.target as { sectionId: string }).sectionId,
+                  ),
+              ),
+              footer: content.navigation.footer.filter(
+                (item) =>
+                  item.target.type !== "section" ||
+                  next.some(
+                    (section) =>
+                      section.id ===
+                      (item.target as { sectionId: string }).sectionId,
+                  ),
+              ),
+            },
+          }
+        : {}),
+    };
+  }
+  function updateSections(transform: (sections: Section[]) => Section[]) {
+    mutate((current) => ({
+      ...current,
+      draft: withSections(current.draft, transform),
+    }));
+  }
+  const selected = sections.find((s) => s.id === active);
   useEffect(() => {
     setExpandedItems(
       new Set(
@@ -305,42 +467,36 @@ export function Editor({ id }: { id: string }) {
             : [],
       ),
     );
-  }, [active]);
+  }, [active, selectedPageId]);
   function validateDraft() {
     const nextIssue = draftIssue(site);
     setIssue(nextIssue);
     if (!nextIssue) return true;
     setError(nextIssue.message);
-    setTab(nextIssue.sectionId ? "content" : "brand");
+    setTab(nextIssue.tab || (nextIssue.sectionId ? "content" : "brand"));
+    if (nextIssue.pageId !== undefined) selectPage(nextIssue.pageId);
+    setIssue(nextIssue);
     if (nextIssue.sectionId) setActive(nextIssue.sectionId);
     if (nextIssue.itemId) setExpandedItems(new Set([nextIssue.itemId]));
     setFocusTarget(nextIssue.field);
     return false;
   }
   function updateSection(patch: Partial<Section>) {
-    mutate((s) => ({
-      ...s,
-      draft: {
-        ...s.draft,
-        sections: s.draft.sections.map((section) =>
-          section.id === active ? { ...section, ...patch } : section,
-        ),
-      },
-    }));
+    updateSections((items) =>
+      items.map((section) =>
+        section.id === active ? { ...section, ...patch } : section,
+      ),
+    );
   }
   function moveSection(index: number, delta: number) {
-    if (index + delta < 0 || index + delta >= site.draft.sections.length)
-      return;
-    mutate((s) => {
-      const sections = [...s.draft.sections];
-      [sections[index], sections[index + delta]] = [
-        sections[index + delta],
-        sections[index],
-      ];
-      return { ...s, draft: { ...s.draft, sections } };
+    if (index + delta < 0 || index + delta >= sections.length) return;
+    updateSections((items) => {
+      const next = [...items];
+      [next[index], next[index + delta]] = [next[index + delta], next[index]];
+      return next;
     });
     setMessage(
-      `بخش «${site.draft.sections[index].title || sectionLabels[site.draft.sections[index].type]}» به جایگاه ${(index + delta + 1).toLocaleString("fa-IR")} منتقل شد؛ برای نگهداری تغییر، ذخیره کن.`,
+      `بخش به جایگاه ${(index + delta + 1).toLocaleString("fa-IR")} منتقل شد؛ برای نگهداری تغییر، ذخیره کن.`,
     );
   }
   async function save(publish = false) {
@@ -414,43 +570,45 @@ export function Editor({ id }: { id: string }) {
       return;
     }
     if (confirmation.kind === "item") {
-      mutate((current) => ({
-        ...current,
-        draft: {
-          ...current.draft,
-          sections: current.draft.sections.map((section) =>
-            section.id === confirmation.sectionId
-              ? {
-                  ...section,
-                  items: section.items?.filter(
-                    (item) => item.id !== confirmation.id,
-                  ),
-                }
-              : section,
-          ),
-        },
-      }));
+      updateSections((items) =>
+        items.map((section) =>
+          section.id === confirmation.sectionId
+            ? {
+                ...section,
+                items: section.items?.filter(
+                  (item) => item.id !== confirmation.id,
+                ),
+              }
+            : section,
+        ),
+      );
       setConfirmation(null);
       setMessage("آیتم از پیش‌نویس حذف شد. برای نگه‌داشتن تغییر، ذخیره کن.");
       return;
     }
     if (confirmation.kind === "section") {
-      if (site.draft.sections.length <= 1) return;
-      const remaining = site.draft.sections.filter(
+      if (sections.length <= 1) return;
+      const remaining = sections.filter(
         (section) => section.id !== confirmation.id,
       );
-      mutate((current) => ({
-        ...current,
-        draft: { ...current.draft, sections: remaining },
-      }));
+      updateSections(() => remaining);
       setActive(remaining[0]?.id || "");
       setConfirmation(null);
       return;
     }
     const templateId = confirmation.id;
+    if (!validateDraft()) {
+      setConfirmation(null);
+      return;
+    }
     if (demo) {
-      const draft = createContent(templateId);
+      const draft = {
+        ...createContent(templateId),
+        pages: site.draft.pages,
+        navigation: site.draft.navigation,
+      };
       mutate((current) => ({ ...current, templateId, draft }));
+      setSelectedPageId("");
       setActive(draft.sections[0]?.id || "");
       setConfirmation(null);
       return;
@@ -460,11 +618,24 @@ export function Editor({ id }: { id: string }) {
     setError("");
     setMessage("");
     try {
+      if (dirty)
+        await request(
+          `/sites/${id}`,
+          json(
+            {
+              draft: normalizeContent(site.draft),
+              name: site.name,
+              seo: site.seo,
+            },
+            "PATCH",
+          ),
+        );
       const data = await request<{ site: Site }>(
         `/sites/${id}/template`,
         json({ templateId }),
       );
       setSite(data.site);
+      setSelectedPageId("");
       setActive(data.site.draft.sections[0]?.id || "");
       setSavedSnapshot(editableSnapshot(data.site));
       setConfirmation(null);
@@ -592,6 +763,10 @@ export function Editor({ id }: { id: string }) {
                   بخش‌ها
                   <Tabs.Indicator />
                 </Tabs.Tab>
+                <Tabs.Tab id="pages">
+                  صفحه‌ها و منوها
+                  <Tabs.Indicator />
+                </Tabs.Tab>
                 <Tabs.Tab id="brand">
                   <Palette size={16} />
                   هویت بصری
@@ -707,6 +882,50 @@ export function Editor({ id }: { id: string }) {
                   </div>
                 </div>
               )}
+              {loaded && (
+                <div className="editor-page-picker">
+                  <SelectField
+                    label="صفحهٔ در حال ویرایش"
+                    value={selectedPageId || "home"}
+                    disabled={busy}
+                    onChange={(value) =>
+                      selectPage(value === "home" ? "" : value)
+                    }
+                    options={[
+                      { value: "home", label: "صفحهٔ اصلی" },
+                      ...(site.draft.pages || []).map((page) => ({
+                        value: page.id,
+                        label: `${page.title}${page.enabled ? "" : " (غیرفعال)"}`,
+                      })),
+                    ]}
+                  />
+                  {selectedPage && (
+                    <p className="editor-hint" dir="ltr">
+                      /{selectedPage.slug}
+                    </p>
+                  )}
+                </div>
+              )}
+              <Tabs.Panel id="pages">
+                {loaded && (
+                  <PageManager
+                    content={site.draft}
+                    selectedPageId={selectedPageId}
+                    onChange={(draft) =>
+                      mutate((current) => ({ ...current, draft }))
+                    }
+                    onSelect={selectPage}
+                    onEdit={() => setTab("content")}
+                    disabled={busy}
+                    hasPosts={resources.posts.length > 0}
+                    menuIssue={
+                      issue?.menuPlacement
+                        ? { placement: issue.menuPlacement, field: issue.field }
+                        : undefined
+                    }
+                  />
+                )}
+              </Tabs.Panel>
               <Tabs.Panel id="content">
                 {loaded && (
                   <>
@@ -714,7 +933,7 @@ export function Editor({ id }: { id: string }) {
                       <b>ساختار صفحه</b>
                       <ActionButton
                         className="text-btn"
-                        disabled={busy || site.draft.sections.length >= 40}
+                        disabled={busy || sections.length >= 40}
                         onClick={() => setAdd(true)}
                       >
                         <Plus size={14} />
@@ -722,7 +941,7 @@ export function Editor({ id }: { id: string }) {
                       </ActionButton>
                     </div>
                     <div className="section-list">
-                      {site.draft.sections.map((section, i) => (
+                      {sections.map((section, i) => (
                         <div
                           key={section.id}
                           className={`section-row ${section.id === active ? "selected" : ""} ${!section.enabled ? "hidden-section" : ""}`}
@@ -750,9 +969,7 @@ export function Editor({ id }: { id: string }) {
                             </ActionButton>
                             <ActionButton
                               aria-label={`پایین بردن ${section.title || sectionLabels[section.type]}`}
-                              disabled={
-                                busy || i === site.draft.sections.length - 1
-                              }
+                              disabled={busy || i === sections.length - 1}
                               onClick={() => moveSection(i, 1)}
                             >
                               <ArrowDown size={12} />
@@ -762,17 +979,13 @@ export function Editor({ id }: { id: string }) {
                               disabled={busy}
                               aria-pressed={!section.enabled}
                               onClick={() =>
-                                mutate((s) => ({
-                                  ...s,
-                                  draft: {
-                                    ...s.draft,
-                                    sections: s.draft.sections.map((x) =>
-                                      x.id === section.id
-                                        ? { ...x, enabled: !x.enabled }
-                                        : x,
-                                    ),
-                                  },
-                                }))
+                                updateSections((items) =>
+                                  items.map((x) =>
+                                    x.id === section.id
+                                      ? { ...x, enabled: !x.enabled }
+                                      : x,
+                                  ),
+                                )
                               }
                             >
                               {section.enabled ? (
@@ -797,7 +1010,7 @@ export function Editor({ id }: { id: string }) {
                           <ActionButton
                             className="icon-btn danger"
                             aria-label="حذف بخش"
-                            disabled={busy || site.draft.sections.length <= 1}
+                            disabled={busy || sections.length <= 1}
                             onClick={() => {
                               setConfirmation({
                                 kind: "section",
@@ -905,25 +1118,43 @@ export function Editor({ id }: { id: string }) {
                               />
                             </label>
                             {selected.type !== "contact" && (
-                              <label>
-                                پیوند دکمه
-                                <Input
-                                  id={`${selected.id}-buttonUrl`}
-                                  dir="ltr"
-                                  value={selected.buttonUrl || ""}
-                                  onChange={(e) =>
-                                    updateSection({ buttonUrl: e.target.value })
-                                  }
-                                  placeholder="#contact"
-                                  disabled={busy}
-                                  aria-invalid={
-                                    issue?.field ===
-                                      `${selected.id}-buttonUrl` || undefined
-                                  }
-                                  maxLength={2048}
-                                />
-                              </label>
+                              <InternalPageLink
+                                pages={site.draft.pages || []}
+                                pageId={selected.buttonPageId}
+                                disabled={busy}
+                                label="صفحهٔ مقصد دکمه"
+                                onChange={(buttonPageId) =>
+                                  updateSection({
+                                    buttonPageId,
+                                    buttonUrl: undefined,
+                                  })
+                                }
+                              />
                             )}
+                            {selected.type !== "contact" &&
+                              !selected.buttonPageId && (
+                                <label>
+                                  پیوند دکمه
+                                  <Input
+                                    id={`${selected.id}-buttonUrl`}
+                                    dir="ltr"
+                                    value={selected.buttonUrl || ""}
+                                    onChange={(e) =>
+                                      updateSection({
+                                        buttonUrl: e.target.value,
+                                        buttonPageId: undefined,
+                                      })
+                                    }
+                                    placeholder="#contact"
+                                    disabled={busy}
+                                    aria-invalid={
+                                      issue?.field ===
+                                        `${selected.id}-buttonUrl` || undefined
+                                    }
+                                    maxLength={2048}
+                                  />
+                                </label>
+                              )}
                             {selected.type !== "contact" && (
                               <p className="editor-hint">
                                 برای تماس مستقیم، پیوندی مثل{" "}
@@ -1071,33 +1302,77 @@ export function Editor({ id }: { id: string }) {
                                               maxLength={2048}
                                             />
                                           </label>
-                                          <label>
-                                            پیوند
-                                            <Input
-                                              id={`${item.id}-url`}
-                                              dir="ltr"
-                                              value={item.url || ""}
-                                              onChange={(e) =>
-                                                updateSection({
-                                                  items: selected.items!.map(
-                                                    (x) =>
-                                                      x.id === item.id
-                                                        ? {
-                                                            ...x,
-                                                            url: e.target.value,
-                                                          }
-                                                        : x,
-                                                  ),
-                                                })
-                                              }
-                                              disabled={busy}
-                                              aria-invalid={
-                                                issue?.field ===
-                                                  `${item.id}-url` || undefined
-                                              }
-                                              maxLength={2048}
-                                            />
-                                          </label>
+                                          <InternalPageLink
+                                            pages={site.draft.pages || []}
+                                            pageId={item.pageId}
+                                            disabled={busy}
+                                            onChange={(pageId) =>
+                                              updateSection({
+                                                items: selected.items!.map(
+                                                  (x) =>
+                                                    x.id === item.id
+                                                      ? {
+                                                          ...x,
+                                                          pageId,
+                                                          url: undefined,
+                                                        }
+                                                      : x,
+                                                ),
+                                              })
+                                            }
+                                          />
+                                          {selected.type === "services" &&
+                                            !item.pageId && (
+                                              <ActionButton
+                                                className="text-btn"
+                                                disabled={
+                                                  busy ||
+                                                  (site.draft.pages?.length ||
+                                                    0) >= 50
+                                                }
+                                                onClick={() =>
+                                                  setLinkedPage({
+                                                    sectionId: selected.id,
+                                                    item,
+                                                  })
+                                                }
+                                              >
+                                                <Plus size={14} />
+                                                ساخت صفحه برای این خدمت یا موضوع
+                                              </ActionButton>
+                                            )}
+                                          {!item.pageId && (
+                                            <label>
+                                              پیوند
+                                              <Input
+                                                id={`${item.id}-url`}
+                                                dir="ltr"
+                                                value={item.url || ""}
+                                                onChange={(e) =>
+                                                  updateSection({
+                                                    items: selected.items!.map(
+                                                      (x) =>
+                                                        x.id === item.id
+                                                          ? {
+                                                              ...x,
+                                                              url: e.target
+                                                                .value,
+                                                              pageId: undefined,
+                                                            }
+                                                          : x,
+                                                    ),
+                                                  })
+                                                }
+                                                disabled={busy}
+                                                aria-invalid={
+                                                  issue?.field ===
+                                                    `${item.id}-url` ||
+                                                  undefined
+                                                }
+                                                maxLength={2048}
+                                              />
+                                            </label>
+                                          )}
                                         </>
                                       )}
                                       <ActionButton
@@ -1335,7 +1610,7 @@ export function Editor({ id }: { id: string }) {
                 : confirmation.kind === "section"
                   ? `بخش «${confirmation.title}» از پیش‌نویس حذف شود؟ سایت منتشرشده تا انتشار دوباره تغییر نمی‌کند.`
                   : confirmation.kind === "template"
-                    ? `قالب «${confirmation.title}» جایگزین محتوای پیش‌نویس شود؟ محتوای فعلی پیش‌نویس و تغییرات ذخیره‌نشده جایگزین می‌شوند.`
+                    ? `قالب «${confirmation.title}» جایگزین محتوای پیش‌نویس شود؟ محتوای صفحهٔ اصلی بازنشانی می‌شود؛ صفحه‌های اضافه و تغییراتشان نگه داشته می‌شوند.`
                     : confirmation.kind === "publish"
                       ? demo
                         ? "پیش‌نویس نمونه در همین مرورگر نگه داشته می‌شود. برای ساخت و انتشار سایت خودت وارد حساب شو؛ تغییرات نمونه خودکار منتقل نمی‌شوند."
@@ -1357,7 +1632,12 @@ export function Editor({ id }: { id: string }) {
                   {site.draft.sections
                     .filter((section) => section.enabled)
                     .length.toLocaleString("fa-IR")}{" "}
-                  بخش قابل نمایش است. بخش‌های پنهان نمایش داده نمی‌شوند.
+                  بخش در صفحهٔ اصلی و{" "}
+                  {(site.draft.pages || [])
+                    .filter((page) => page.enabled)
+                    .length.toLocaleString("fa-IR")}{" "}
+                  صفحهٔ مستقل قابل نمایش است. صفحه‌ها و بخش‌های غیرفعال نمایش
+                  داده نمی‌شوند.
                 </p>
                 {site.draft.sections.every((section) => !section.enabled) && (
                   <p>
@@ -1429,6 +1709,52 @@ export function Editor({ id }: { id: string }) {
           </div>
         </Modal>
       )}
+      {linkedPage && (
+        <CreatePageDialog
+          pages={site.draft.pages || []}
+          initialTitle={linkedPage.item.title}
+          initialKind="service"
+          onClose={() => setLinkedPage(null)}
+          onCreate={(page: SitePage) => {
+            const detail = {
+              ...page,
+              sections: page.sections.map((section) =>
+                section.type === "hero"
+                  ? {
+                      ...section,
+                      subtitle: linkedPage.item.description || "",
+                      image: linkedPage.item.image,
+                    }
+                  : section,
+              ),
+            };
+            mutate((current) => {
+              const draft = withSections(current.draft, (items) =>
+                items.map((section) =>
+                  section.id === linkedPage.sectionId
+                    ? {
+                        ...section,
+                        items: section.items?.map((item) =>
+                          item.id === linkedPage.item.id
+                            ? { ...item, pageId: page.id, url: undefined }
+                            : item,
+                        ),
+                      }
+                    : section,
+                ),
+              );
+              return {
+                ...current,
+                draft: { ...draft, pages: [...(draft.pages || []), detail] },
+              };
+            });
+            setSelectedPageId(page.id);
+            setActive(page.sections[0]?.id || "");
+            setTab("pages");
+            setLinkedPage(null);
+          }}
+        />
+      )}
       {add && (
         <Modal
           title="یک بخش تازه به صفحه اضافه کن"
@@ -1439,9 +1765,9 @@ export function Editor({ id }: { id: string }) {
               ([type, label]) => (
                 <ActionButton
                   key={type}
-                  disabled={busy || site.draft.sections.length >= 40}
+                  disabled={busy || sections.length >= 40}
                   onClick={() => {
-                    if (busy || site.draft.sections.length >= 40) return;
+                    if (busy || sections.length >= 40) return;
                     const source = (
                       demo
                         ? createContent(site.templateId)
@@ -1452,13 +1778,7 @@ export function Editor({ id }: { id: string }) {
                       id: `${type}_${crypto.randomUUID()}`,
                       enabled: true,
                     };
-                    mutate((s) => ({
-                      ...s,
-                      draft: {
-                        ...s.draft,
-                        sections: [...s.draft.sections, section],
-                      },
-                    }));
+                    updateSections((items) => [...items, section]);
                     setActive(section.id);
                     setAdd(false);
                   }}

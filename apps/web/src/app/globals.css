@@ -1,6 +1,11 @@
 @import "tailwindcss";
 @import "@heroui/styles";
 @import "./landing.css";
+@import "./niche-templates.css";
+.route-feedback { min-height: 100dvh; display: grid; place-items: center; padding: 28px; text-align: center; background: #f5f4ee; }
+.route-feedback > div { max-width: 480px; }
+.route-feedback h1 { font-size: clamp(25px, 5vw, 34px); color: #284c3e; line-height: 1.9; }
+.route-feedback p { margin-block: 18px 28px; color: #61735d; font-size: 14px; line-height: 2.1; }
 @font-face {
   font-family: Vazirmatn;
   src: url("/fonts/vazirmatn.woff2") format("woff2");
@@ -1619,9 +1624,11 @@ svg {
   color: #899780;
   font-size: 11px;
 }
-.template-filter a:hover {
+.template-filter a:hover, .template-filter button:hover {
   color: var(--green);
 }
+.template-filter .action-button { font-size: 11px; min-height: 40px; padding: 7px 12px; height: auto; white-space: normal; }
+.template-filter { flex-wrap: wrap; }
 .filter-active {
   display: flex;
   align-items: center;
@@ -5486,4 +5493,83 @@ input[type="color"] {
   .workspace .welcome-content > p {
     max-width: none;
   }
+}
+.editor-page-picker {
+  margin: 0 0 18px;
+  padding: 12px;
+  border: 1px solid #e3e9dc;
+  border-radius: 12px;
+  background: #f8faf5;
+}
+.editor-page-picker .editor-hint {
+  margin-bottom: 0;
+}
+.page-manager .page-list {
+  display: grid;
+  gap: 7px;
+  max-height: 290px;
+  overflow-y: auto;
+  padding: 2px;
+}
+.page-manager .page-list-item {
+  display: flex;
+  width: 100%;
+  height: auto;
+  min-height: 48px;
+  padding: 10px;
+  justify-content: space-between;
+  text-align: right;
+  white-space: normal;
+  gap: 8px;
+  border: 1px solid #e3e9dc;
+  border-radius: 9px;
+}
+.page-manager .page-list-item > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.page-manager .page-list-item small {
+  display: block;
+  font-size: 10px;
+  color: #617052;
+}
+.page-manager .page-list-item.active {
+  background: #eef5e6;
+  border-color: #7e9c60;
+}
+.page-settings,
+.menu-manager {
+  padding-top: 16px;
+  border-top: 1px solid #e3e9dc;
+}
+.page-manager h3 {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.page-manager .stack-form {
+  gap: 12px;
+}
+.page-manager .menu-item {
+  padding: 12px;
+  border: 1px solid #e3e9dc;
+  border-radius: 10px;
+}
+.menu-item-actions {
+  display: flex;
+  gap: 3px;
+}
+.menu-item-actions button {
+  min-width: 32px;
+  width: 32px;
+  height: 32px;
+  padding: 5px;
+}
+.editor-tabs {
+  gap: 2px;
+  padding-inline: 8px;
+}
+.editor-tabs > [role="tab"] {
+  padding-inline: 5px;
+  gap: 4px;
+  white-space: nowrap;
 }

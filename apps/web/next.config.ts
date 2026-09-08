@@ -6,6 +6,7 @@ const config: NextConfig = {
   poweredByHeader: false,
   async headers() {
     return [
+      ...["/login", "/portal/:path*", "/preview/:path*", "/editor/:path*", "/live-preview"].map(source => ({ source, headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] })),
       {
         source: "/:path*",
         headers: [

@@ -727,6 +727,12 @@ export function DomainsScreen() {
             نمایش سایت روی دامنه به تنظیم مسیر DNS به سرور استقرار و فعال‌سازی
             HTTPS نیز نیاز دارد.
           </Copy>
+          <Action danger small disabled={busy} onPress={() => confirm("حذف دامنه", "اتصال این دامنه به سایت حذف می‌شود. آدرس پیش‌فرض سایت باقی می‌ماند؛ رکوردهای DNS جداگانه مدیریت می‌شوند.", () => run(async () => {
+            await request(`/sites/${site.id}/domains/${domain.id}`, token, undefined, "DELETE");
+            await resource.reload();
+          }, "دامنه از سایت حذف شد."), true)}>
+            حذف دامنه
+          </Action>
         </Panel>
       ))}
     </>
@@ -877,6 +883,12 @@ export function FilesScreen() {
             }
           >
             دریافت فایل ↓
+          </Action>
+          <Action danger small disabled={busy} onPress={() => confirm("حذف و لغو دسترسی فایل", "این فایل از پنل گیرنده حذف می‌شود. نسخه‌ای که قبلاً دانلود شده قابل پس‌گرفتن نیست.", () => run(async () => {
+            await request(`/sites/${site.id}/files/${file.id}`, token, undefined, "DELETE");
+            await resource.reload();
+          }, "فایل حذف و دسترسی به آن لغو شد."), true)}>
+            حذف و لغو دسترسی
           </Action>
         </Panel>
       ))}

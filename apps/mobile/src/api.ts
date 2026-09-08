@@ -158,6 +158,7 @@ export function number(value: number) {
   return value.toLocaleString("fa-IR");
 }
 export function publicMedia(url?: string) {
+  if (url?.startsWith("/images/templates/")) return `${WEB_URL.replace(/\/$/, "")}${url}`;
   return url?.startsWith("/")
     ? `${API_URL.replace(/\/api\/?$/, "")}${url}`
     : url;

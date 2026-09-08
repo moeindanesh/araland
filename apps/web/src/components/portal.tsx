@@ -1,7 +1,7 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { SiteFile } from "@araland/shared";
+import { ApiError, SiteFile } from "@araland/shared";
 import {
   FolderLock,
   Download,
@@ -25,7 +25,17 @@ export function Portal({ slug }: { slug: string }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
+  const [refresh, setRefresh] = useState(0);
+  const [downloading, setDownloading] = useState<string | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const generation = useRef(0);
   useEffect(() => {
+    const current = ++generation.current;
+    setFiles([]);
+    setName("");
+    setError("");
+    setLoading(true);
+    setAuthenticated(false);
     if (!getPortalToken(slug)) {
       setLoading(false);
       return;
@@ -39,22 +49,29 @@ export function Portal({ slug }: { slug: string }) {
         ),
       )
       .then((data) => {
+        if (current !== generation.current) return;
         setFiles(data.files);
         setName(data.site.name);
       })
       .catch((e) => {
+        if (current !== generation.current) return;
         setError(e.message);
-        if (/ورود|نشست|401|توکن/.test(e.message)) {
+        if (e instanceof ApiError && e.status === 401) {
           localStorage.removeItem(portalTokenKey(slug));
           setAuthenticated(false);
         }
       })
-      .finally(() => setLoading(false));
-  }, [slug]);
+      .finally(() => { if (current === generation.current) setLoading(false); });
+    return () => { generation.current += 1; };
+  }, [slug, refresh]);
   async function download(file: SiteFile) {
+    if (downloading || loggingOut) return;
+    setDownloading(file.id);
+    setError("");
     try {
       const response = await fetch(`${baseUrl}/files/${file.id}/download`, {
         headers: { Authorization: `Bearer ${getPortalToken(slug)}` },
+        signal: AbortSignal.timeout(30_000),
       });
       if (!response.ok)
         throw new Error("فایل در دسترس نیست یا مجوز دریافت ندارید.");
@@ -62,10 +79,14 @@ export function Portal({ slug }: { slug: string }) {
       const a = document.createElement("a");
       a.href = url;
       a.download = file.originalName;
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      setDownloading(null);
     }
   }
   return (
@@ -75,14 +96,23 @@ export function Portal({ slug }: { slug: string }) {
         {authenticated && (
           <Button
             className="btn-outline btn-small"
+            disabled={loggingOut}
             onClick={async () => {
+              if (loggingOut) return;
+              setLoggingOut(true);
+              generation.current += 1;
               try {
                 await portalRequest(slug, "/auth/logout", json({}));
+              } catch {
+                // Local logout still completes when the server cannot revoke the session.
               } finally {
                 localStorage.removeItem(portalTokenKey(slug));
                 setFiles([]);
                 setAuthenticated(false);
                 setError("");
+                setName("");
+                setLoading(false);
+                setLoggingOut(false);
               }
             }}
           >
@@ -108,6 +138,7 @@ export function Portal({ slug }: { slug: string }) {
           </p>
         </div>
         <Notice message={error} error />
+        {authenticated && !loading && <Button className="btn-outline btn-small" disabled={loggingOut || !!downloading} onClick={() => setRefresh(value => value + 1)}>تازه‌سازی فایل‌ها</Button>}
         {loading ? (
           <Empty title="در حال آماده‌سازی پنل…" description="" />
         ) : !authenticated ? (
@@ -137,9 +168,9 @@ export function Portal({ slug }: { slug: string }) {
                   {date(file.createdAt)} · {fa(Math.ceil(file.size / 1024))}{" "}
                   کیلوبایت
                 </small>
-                <Button className="btn-outline" onClick={() => download(file)}>
+                <Button className="btn-outline" disabled={!!downloading || loggingOut} onClick={() => download(file)}>
                   <Download size={17} />
-                  دریافت فایل
+                  {downloading === file.id ? "در حال دریافت…" : "دریافت فایل"}
                 </Button>
               </article>
             ))}

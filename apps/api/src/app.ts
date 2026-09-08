@@ -1,6 +1,15 @@
 import { Elysia, t } from "elysia";
 import { db, Prisma } from "@araland/db";
-import { createInitialContent, type FormField } from "@araland/shared";
+import {
+  createInitialContent,
+  isValidPageSlug,
+  normalizeContent,
+  normalizePageSlug,
+  publicSiteContent,
+  type FormField,
+  type Section,
+  type SiteContent,
+} from "@araland/shared";
 import { randomBytes, randomInt, randomUUID } from "node:crypto";
 import { resolveTxt } from "node:dns/promises";
 import { domainToASCII } from "node:url";
@@ -34,6 +43,9 @@ import { allowOrigin, requestSiteScope } from "./cors";
 type DbSite = Awaited<ReturnType<typeof db.site.findFirstOrThrow>>;
 const json = (value: unknown) => value as Prisma.InputJsonValue;
 function siteDto(site: DbSite, publicOnly = false) {
+  const published = publicOnly && site.published
+    ? publicSiteContent(site.published as unknown as SiteContent)
+    : site.published;
   return {
     id: site.id,
     name: publicOnly ? site.publishedName || site.name : site.name,
@@ -42,8 +54,8 @@ function siteDto(site: DbSite, publicOnly = false) {
       ? site.publishedTemplateId || site.templateId
       : site.templateId,
     status: site.status,
-    draft: publicOnly ? site.published : site.draft,
-    published: site.published,
+    draft: publicOnly ? published : site.draft,
+    published,
     publishedAt: site.publishedAt?.toISOString() || null,
     updatedAt: publicOnly
       ? site.publishedAt?.toISOString()
@@ -119,21 +131,67 @@ async function sitesFor(userId: string) {
     })
   ).map((site) => siteDto(site));
 }
-function validateContent(content: {
-  sections: { id: string; items?: { id: string }[] }[];
-}) {
+async function publicSitePayload(site: DbSite) {
+  const [forms, posts] = await Promise.all([
+    db.siteForm.findMany({
+      where: { siteId: site.id },
+      select: { id: true, title: true, fields: true },
+      orderBy: { createdAt: "asc" },
+    }),
+    db.post.findMany({
+      where: { siteId: site.id, published: true },
+      select: {
+        id: true, title: true, slug: true, excerpt: true, body: true,
+        cover: true, published: true, createdAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+  return { site: siteDto(site, true), forms, posts };
+}
+function validateSections(sections: Section[], pageIds: Set<string>) {
   assert(
-    new Set(content.sections.map((s) => s.id)).size === content.sections.length,
+    new Set(sections.map((s) => s.id)).size === sections.length,
     400,
     "شناسه بخش‌ها نباید تکراری باشد.",
   );
-  for (const section of content.sections)
-    if (section.items)
+  for (const section of sections) {
+    assert(!(section.buttonPageId && section.buttonUrl), 400, "برای دکمه فقط یک مقصد انتخاب کنید.");
+    assert(!section.buttonPageId || pageIds.has(section.buttonPageId), 400, "صفحه مقصد دکمه در این سایت وجود ندارد.");
+    if (section.items) {
       assert(
         new Set(section.items.map((i) => i.id)).size === section.items.length,
         400,
         "شناسه آیتم‌ها نباید تکراری باشد.",
       );
+      for (const item of section.items) {
+        assert(!(item.pageId && item.url), 400, "برای هر آیتم فقط یک مقصد انتخاب کنید.");
+        assert(!item.pageId || pageIds.has(item.pageId), 400, "صفحه مقصد آیتم در این سایت وجود ندارد.");
+      }
+    }
+  }
+}
+function validateContent(content: SiteContent) {
+  const pages = content.pages ?? [];
+  const pageIds = new Set(pages.map((page) => page.id));
+  assert(pageIds.size === pages.length, 400, "شناسه صفحه‌ها نباید تکراری باشد.");
+  assert(new Set(pages.map((page) => normalizePageSlug(page.slug))).size === pages.length, 400, "آدرس صفحه‌ها در هر سایت باید یکتا باشد.");
+  validateSections(content.sections, pageIds);
+  for (const page of pages) {
+    assert(page.title.trim().length > 0, 400, "عنوان صفحه را وارد کنید.");
+    assert(isValidPageSlug(page.slug), 400, "آدرس صفحه باید با حروف انگلیسی، عدد و خط تیره نوشته شود و رزرو شده نباشد.");
+    validateSections(page.sections, pageIds);
+  }
+  const homeSectionIds = new Set(content.sections.map((section) => section.id));
+  for (const items of [content.navigation?.header ?? [], content.navigation?.footer ?? []]) {
+    assert(new Set(items.map((item) => item.id)).size === items.length, 400, "شناسه لینک‌ها در هر فهرست نباید تکراری باشد.");
+    for (const item of items) {
+      assert(item.label.trim().length > 0, 400, "عنوان لینک فهرست را وارد کنید.");
+      const target = item.target;
+      assert(target.type !== "page" || pageIds.has(target.pageId), 400, "صفحه مقصد فهرست در این سایت وجود ندارد.");
+      assert(target.type !== "section" || homeSectionIds.has(target.sectionId), 400, "بخش مقصد فهرست در صفحه اصلی وجود ندارد.");
+    }
+  }
 }
 function validateFields(fields: FormField[]) {
   assert(
@@ -146,6 +204,7 @@ function validateFields(fields: FormField[]) {
     400,
     "برای فیلد انتخابی، گزینه تعریف کنید.",
   );
+  assert(fields.every((field) => !field.options || new Set(field.options.map((option) => option.trim())).size === field.options.length), 400, "گزینه‌های فیلد انتخابی نباید تکراری باشند.");
   assert(
     fields.every(
       (f) => !["__proto__", "constructor", "prototype"].includes(f.id),
@@ -491,12 +550,13 @@ export function createApp() {
       "/api/sites/:id",
       async ({ request, params, body }) => {
         await ownedSite(request, params.id);
-        if (body.draft) validateContent(body.draft);
+        const draft = body.draft ? normalizeContent(body.draft) : undefined;
+        if (draft) validateContent(draft);
         const site = await db.site.update({
           where: { id: params.id },
           data: {
             ...(body.name !== undefined ? { name: body.name } : {}),
-            ...(body.draft ? { draft: json(body.draft) } : {}),
+            ...(draft ? { draft: json(draft) } : {}),
             ...(body.seo ? { seo: json(body.seo) } : {}),
           },
         });
@@ -512,6 +572,7 @@ export function createApp() {
     )
     .post("/api/sites/:id/publish", async ({ request, params }) => {
       const { site } = await ownedSite(request, params.id);
+      validateContent(site.draft as unknown as SiteContent);
       return {
         site: siteDto(
           await db.site.update({
@@ -534,6 +595,15 @@ export function createApp() {
         const { site } = await ownedSite(request, params.id);
         const draft = createInitialContent(body.templateId);
         draft.brand.name = site.name;
+        const previous = site.draft as unknown as SiteContent;
+        draft.pages = previous.pages;
+        if (previous.navigation) {
+          const sectionIds = new Set(draft.sections.map((section) => section.id));
+          draft.navigation = {
+            header: previous.navigation.header.filter((item) => item.target.type !== "section" || sectionIds.has(item.target.sectionId)),
+            footer: previous.navigation.footer.filter((item) => item.target.type !== "section" || sectionIds.has(item.target.sectionId)),
+          };
+        }
         return {
           site: siteDto(
             await db.site.update({
@@ -798,6 +868,12 @@ export function createApp() {
         };
       },
     )
+    .delete("/api/sites/:id/domains/:domainId", async ({ request, params }) => {
+      await ownedSite(request, params.id);
+      const removed = await db.domain.deleteMany({ where: { id: params.domainId, siteId: params.id } });
+      assert(removed.count, 404, "دامنه پیدا نشد.");
+      return { ok: true };
+    })
     .get("/api/sites/:id/files", async ({ request, params }) => {
       await ownedSite(request, params.id);
       return {
@@ -844,6 +920,17 @@ export function createApp() {
         }),
       },
     )
+    .delete("/api/sites/:id/files/:fileId", async ({ request, params }) => {
+      await ownedSite(request, params.id);
+      const file = await db.siteFile.findFirst({ where: { id: params.fileId, siteId: params.id } });
+      assert(file, 404, "فایل پیدا نشد.");
+      // Revoke authorization first; a storage error must never keep the download available.
+      await db.siteFile.deleteMany({ where: { id: file.id, siteId: params.id } });
+      await unlink(resolve(storageRoot, "private", file.storageKey)).catch((error: NodeJS.ErrnoException) => {
+        if (error.code !== "ENOENT") console.error("Private file cleanup failed", { fileId: file.id, code: error.code });
+      });
+      return { ok: true };
+    })
     .get("/api/files/:id/download", async ({ request, params }) => {
       const user = await userFrom(request);
       const file = await db.siteFile.findFirst({
@@ -950,28 +1037,14 @@ export function createApp() {
     })
     .get("/api/public/sites/:slug", async ({ params }) => {
       const site = await publishedSite(params.slug);
-      const [forms, posts] = await Promise.all([
-        db.siteForm.findMany({
-          where: { siteId: site.id },
-          select: { id: true, title: true, fields: true },
-          orderBy: { createdAt: "asc" },
-        }),
-        db.post.findMany({
-          where: { siteId: site.id, published: true },
-          select: {
-            id: true,
-            title: true,
-            slug: true,
-            excerpt: true,
-            body: true,
-            cover: true,
-            published: true,
-            createdAt: true,
-          },
-          orderBy: { createdAt: "desc" },
-        }),
-      ]);
-      return { site: siteDto(site, true), forms, posts };
+      return publicSitePayload(site);
+    })
+    .get("/api/public/sites/:slug/pages/:pageSlug", async ({ params }) => {
+      const site = await publishedSite(params.slug);
+      const published = publicSiteContent(site.published as unknown as SiteContent);
+      const page = published.pages?.find((candidate) => candidate.slug === params.pageSlug);
+      assert(page, 404, "صفحه منتشرشده پیدا نشد.");
+      return { ...(await publicSitePayload(site)), page };
     })
     .get("/api/public/domain/:hostname", async ({ params }) => {
       const domain = await db.domain.findFirst({

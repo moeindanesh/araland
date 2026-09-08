@@ -32,6 +32,7 @@ import {
   useResource,
   number,
   WEB_URL,
+  publicMedia,
   message,
   confirm,
 } from "./src/api";
@@ -625,7 +626,7 @@ function SitePicker({
                 }}
               >
                 <Image
-                  source={{ uri: template.image }}
+                  source={{ uri: publicMedia(template.image) }}
                   style={[styles.image, { height: 145 }]}
                 />
                 <View style={styles.between}>
@@ -849,7 +850,7 @@ function Tools({ onNavigate }: { onNavigate: (detail: Detail) => void }) {
       {
         id: "templates",
         title: "قالب‌های سایت",
-        subtitle: "سه شخصیت متفاوت برای کسب‌وکار شما",
+        subtitle: "پنج شخصیت متفاوت برای کسب‌وکار شما",
         icon: "▦",
       },
       {

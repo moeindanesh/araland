@@ -4,6 +4,7 @@ import { Site, SiteForm, Post } from "@araland/shared";
 import { LandingPage } from "@/components/landing-page";
 export default function LivePreview() {
   const [site, setSite] = useState<Site | null>(null);
+  const [selectedPageId, setSelectedPageId] = useState<string | undefined>();
   const [resources, setResources] = useState<{
     forms: SiteForm[];
     posts: Post[];
@@ -17,6 +18,11 @@ export default function LivePreview() {
         event.data.site?.draft?.sections
       ) {
         setSite(event.data.site);
+        setSelectedPageId(
+          typeof event.data.selectedPageId === "string" && event.data.selectedPageId
+            ? event.data.selectedPageId
+            : undefined,
+        );
         setResources({
           forms: Array.isArray(event.data.forms) ? event.data.forms : [],
           posts: Array.isArray(event.data.posts) ? event.data.posts : [],
@@ -35,6 +41,7 @@ export default function LivePreview() {
       site={site}
       forms={resources.forms}
       posts={resources.posts}
+      pageId={selectedPageId}
       preview
       embedded
     />

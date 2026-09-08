@@ -12,7 +12,7 @@ async function withNetworkMessage<T>(pending: Promise<T>): Promise<T> {
   try {
     return await pending;
   } catch (error) {
-    if (error instanceof TypeError)
+    if (error instanceof TypeError || (error instanceof Error && ["AbortError", "TimeoutError"].includes(error.name)))
       throw new Error(
         "ارتباط با سرور برقرار نشد. اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.",
       );
@@ -31,7 +31,7 @@ export const date = (value: string) =>
     day: "numeric",
   });
 export const safeUrl = (url?: string) =>
-  url && /^(https?:\/\/|tel:|mailto:|#|\/[^/])/.test(url) ? url : "#contact";
+  url && /^(https?:\/\/|tel:|mailto:|#|\/(?:[^/]|$))/.test(url) ? url : "#contact";
 
 export const portalTokenKey = (slug: string) => `araland-portal-${slug}`;
 export const getPortalToken = (slug: string) =>

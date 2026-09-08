@@ -991,6 +991,8 @@ function FilesPanel({ site }: { site: Site }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<SiteFile | null>(null);
+  const [removeError, setRemoveError] = useState("");
   async function download(file: SiteFile) {
     if (downloading) return;
     setDownloading(file.id);
@@ -998,6 +1000,7 @@ function FilesPanel({ site }: { site: Site }) {
     try {
       const r = await fetch(`${baseUrl}/files/${file.id}/download`, {
         headers: { Authorization: `Bearer ${getToken()}` },
+        signal: AbortSignal.timeout(30_000),
       });
       if (!r.ok) {
         const result = (await r.json().catch(() => null)) as {
@@ -1192,6 +1195,12 @@ function FilesPanel({ site }: { site: Site }) {
                     <Download size={18} />
                   )}
                 </ActionButton>
+                <ActionButton
+                  aria-label={`حذف و لغو دسترسی ${file.title}`}
+                  className="icon-btn danger-text"
+                  disabled={busy || !!downloading}
+                  onClick={() => { setRemoveError(""); setRemoving(file); }}
+                ><Trash2 size={18} /></ActionButton>
               </div>
             ))
           ) : (
@@ -1201,6 +1210,24 @@ function FilesPanel({ site }: { site: Site }) {
             />
           ))}
       </Card>
+      {removing && <DeleteResourceDialog
+        title={removing.title}
+        description="دسترسی گیرنده به این فایل فوراً لغو می‌شود. نسخه‌ای که قبلاً دانلود شده قابل پس‌گرفتن نیست."
+        busy={busy}
+        error={removeError}
+        onCancel={() => setRemoving(null)}
+        onConfirm={async () => {
+          if (busy) return;
+          setBusy(true); setRemoveError("");
+          try {
+            await request(`/sites/${site.id}/files/${removing.id}`, { method: "DELETE" });
+            setRemoving(null);
+            setMessage("فایل حذف و دسترسی به آن لغو شد.");
+            await list.reload();
+          } catch (error) { setRemoveError((error as Error).message); }
+          finally { setBusy(false); }
+        }}
+      />}
     </div>
   );
 }
@@ -1547,6 +1574,8 @@ function DomainsPanel({ site }: { site: Site }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [verifying, setVerifying] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<Domain | null>(null);
+  const [removeError, setRemoveError] = useState("");
   const [recordMessage, setRecordMessage] = useState<{
     id: string;
     text: string;
@@ -1597,7 +1626,7 @@ function DomainsPanel({ site }: { site: Site }) {
               placeholder="yourbusiness.ir"
               required
               dir="ltr"
-              pattern="[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
+              pattern={"[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}"}
               maxLength={253}
               autoCapitalize="none"
               spellCheck={false}
@@ -1725,6 +1754,9 @@ function DomainsPanel({ site }: { site: Site }) {
                   <RefreshCw size={15} />
                   بررسی رکورد
                 </Button>
+                <ActionButton className="text-btn danger-text" disabled={busy} onClick={() => { setRemoveError(""); setRemoving(domain); }}>
+                  <Trash2 size={15} /> حذف دامنه {domain.hostname}
+                </ActionButton>
                 {recordMessage?.id === domain.id && (
                   <Notice
                     message={recordMessage.text}
@@ -1740,6 +1772,24 @@ function DomainsPanel({ site }: { site: Site }) {
             />
           ))}
       </Card>
+      {removing && <DeleteResourceDialog
+        title={removing.hostname}
+        description="اتصال این دامنه به سایت حذف می‌شود؛ آدرس پیش‌فرض سایت باقی می‌ماند. رکوردهای DNS در پنل دامنه جداگانه مدیریت می‌شوند."
+        busy={busy}
+        error={removeError}
+        onCancel={() => setRemoving(null)}
+        onConfirm={async () => {
+          if (busy) return;
+          setBusy(true); setRemoveError("");
+          try {
+            await request(`/sites/${site.id}/domains/${removing.id}`, { method: "DELETE" });
+            setRemoving(null); setRecordMessage(null);
+            setMessage("دامنه از این سایت حذف شد.");
+            await list.reload();
+          } catch (error) { setRemoveError((error as Error).message); }
+          finally { setBusy(false); }
+        }}
+      />}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
+import { templates } from "@araland/shared";
 import { ArrowUpLeft, Smartphone, ShieldCheck, Check } from "lucide-react";
 import { Brand, Button, ActionButton, Input, Notice } from "./ui";
 import { request, json, portalTokenKey } from "@/lib/client";
@@ -225,7 +226,7 @@ export function Auth() {
                 );
                 if (
                   template &&
-                  ["orbit", "bloom", "forma"].includes(template)
+                  templates.some((item) => item.id === template)
                 ) {
                   try {
                     localStorage.setItem(

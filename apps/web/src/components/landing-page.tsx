@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type MouseEvent } from "react";
 import Link from "next/link";
 import {
   Site,
@@ -9,7 +9,6 @@ import {
   SectionItem,
   SectionType,
   SiteContent,
-  sectionLabels,
 } from "@araland/shared";
 import {
   ArrowUpLeft,
@@ -17,13 +16,15 @@ import {
   Plus,
   Minus,
   Instagram,
-  Menu,
   X,
   Check,
   Play,
   MoveUpRight,
 } from "lucide-react";
-import { request, json, safeUrl } from "@/lib/client";
+import { request, json } from "@/lib/client";
+import { createSiteLinks, visibleSiteSections } from "@/lib/site-links";
+import { PublicSiteHeader, PublicSiteFooter } from "./public-site-chrome";
+import { NicheHero } from "./niche-hero";
 import { Notice } from "./ui";
 export function LandingPage({
   site,
@@ -31,61 +32,70 @@ export function LandingPage({
   posts = [],
   preview = false,
   embedded = false,
+  pageId,
+  siteBasePath = `/s/${site.slug}`,
 }: {
   site: Site;
   forms?: SiteForm[];
   posts?: Post[];
   preview?: boolean;
   embedded?: boolean;
+  pageId?: string;
+  siteBasePath?: string;
 }) {
   const content = preview ? site.draft : site.published || site.draft;
-  const [menu, setMenu] = useState(false);
+  const [previewPageId, setPreviewPageId] = useState(pageId);
   const [story, setStory] = useState<SectionItem | null>(null);
-  const menuId = useId();
-  const menuButton = useRef<HTMLButtonElement>(null);
-  const sections = content.sections.filter(
-    (section) =>
-      section.enabled &&
-      (section.type !== "blog" ||
-        posts.length > 0 ||
-        !!section.items?.length) &&
-      (section.type !== "stories" || !!section.items?.length),
-  );
-  const anchors: Partial<Record<SectionType, string>> = {};
-  for (const section of sections)
-    anchors[section.type] ??= `#${encodeURIComponent(section.id)}`;
-  const fallbackHref =
-    anchors.contact || anchors.services || anchors.about || anchors.hero || "#";
-  const resolveLink = (url?: string) => {
-    const href = safeUrl(url);
-    const type = href.slice(1) as SectionType;
-    return href.startsWith("#") &&
-      Object.prototype.hasOwnProperty.call(sectionLabels, type)
-      ? anchors[type] || fallbackHref
-      : href;
-  };
-  const navItems: { type: SectionType; label: string }[] = [
-    { type: "services", label: "خدمات ما" },
-    { type: "about", label: "درباره ما" },
-    { type: "blog", label: "خواندنی‌ها" },
-    { type: "contact", label: "در ارتباط باشیم" },
-  ];
+  const pendingAnchor = useRef<string | null>(null);
+  const currentPageId = preview ? previewPageId : pageId;
+  const page = content.pages?.find((page) => page.id === currentPageId);
+  const sections = visibleSiteSections(page?.sections || content.sections, posts.length > 0);
+  const links = createSiteLinks(content, siteBasePath, page?.id, posts.length > 0);
+  const { anchors, resolveLink } = links;
   useEffect(() => {
-    if (!menu) return;
-    const close = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setMenu(false);
-        menuButton.current?.focus();
-      }
-    };
-    document.addEventListener("keydown", close);
-    return () => document.removeEventListener("keydown", close);
-  }, [menu]);
+    setPreviewPageId(pageId);
+  }, [pageId]);
+  useEffect(() => {
+    if (!preview) return;
+    if (pendingAnchor.current) {
+      document.getElementById(pendingAnchor.current)?.scrollIntoView();
+      pendingAnchor.current = null;
+    } else {
+      window.scrollTo({ top: 0, behavior: "instant" });
+    }
+  }, [previewPageId, preview]);
+  const navigatePreview = (
+    event: MouseEvent<HTMLElement>,
+    element = event.currentTarget as HTMLAnchorElement,
+  ) => {
+    if (!preview || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+      return;
+    const destination = new URL(element.href, window.location.href);
+    if (destination.origin !== window.location.origin) return;
+    if (element.getAttribute("href")?.startsWith("#")) return;
+    const target = content.pages?.find(
+      (candidate) => `${siteBasePath}/${encodeURIComponent(candidate.slug)}` === destination.pathname,
+    );
+    const isHome = destination.pathname === links.homeHref;
+    if (!target && !isHome) return;
+    event.preventDefault();
+    const nextPageId = target?.id;
+    const anchor = destination.hash ? decodeURIComponent(destination.hash.slice(1)) : null;
+    if (nextPageId === previewPageId) {
+      if (anchor) document.getElementById(anchor)?.scrollIntoView();
+      else window.scrollTo({ top: 0, behavior: "instant" });
+    } else {
+      pendingAnchor.current = anchor;
+      setPreviewPageId(nextPageId);
+    }
+    if (embedded)
+      window.parent.postMessage({ type: "araland-preview-page", pageId: nextPageId || "" }, window.location.origin);
+    setStory(null);
+  };
   useEffect(() => {
     if (!preview && !embedded)
       request(`/public/sites/${site.slug}/visit`, json({})).catch(() => {});
-  }, [site.slug, preview, embedded]);
+  }, [site.slug, pageId, preview, embedded]);
   return (
     <div
       className={`landing landing-${site.templateId} ${embedded ? "embedded" : ""}`}
@@ -104,53 +114,37 @@ export function LandingPage({
           </Link>
         </div>
       )}
-      <nav className="landing-nav" aria-label="بخش‌های سایت">
-        <a href={anchors.hero || "#"} className="landing-logo">
-          <span className="landing-symbol">
-            {site.templateId === "bloom"
-              ? "✳"
-              : site.templateId === "forma"
-                ? "f."
-                : "m."}
-          </span>
-          {content.brand.name}
-        </a>
-        <div id={menuId} className={`landing-links ${menu ? "open" : ""}`}>
-          {navItems
-            .filter((item) => anchors[item.type])
-            .map((item) => (
-              <a
-                key={item.type}
-                href={anchors[item.type]}
-                onClick={() => setMenu(false)}
-              >
-                {item.label}
-              </a>
-            ))}
+      <a className="landing-skip" href="#site-main">رفتن به محتوای اصلی</a>
+      <PublicSiteHeader
+        site={site}
+        content={content}
+        siteBasePath={siteBasePath}
+        pageId={page?.id}
+        hasPosts={posts.length > 0}
+        onNavigate={navigatePreview}
+      />
+      {page && (
+        <div className="landing-page-intro">
+          <nav className="landing-breadcrumb" aria-label="مسیر صفحه">
+            <a href={links.homeHref} onClick={navigatePreview}>صفحهٔ اصلی</a>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page">{page.title}</span>
+          </nav>
+          {preview && !page.enabled && <p className="landing-page-status">این صفحه غیرفعال است و پس از انتشار نمایش داده نمی‌شود.</p>}
+          {!sections.some((section) => section.type === "hero") && <h1>{page.title}</h1>}
         </div>
-        {anchors.contact && (
-          <a className="landing-nav-cta" href={anchors.contact}>
-            شروع یک گفتگو <ArrowUpLeft size={17} />
-          </a>
-        )}
-        <button
-          ref={menuButton}
-          type="button"
-          className="landing-menu icon-btn"
-          aria-label={menu ? "بستن فهرست" : "نمایش فهرست"}
-          aria-expanded={menu}
-          aria-controls={menuId}
-          onClick={() => setMenu(!menu)}
-        >
-          {menu ? <X /> : <Menu />}
-        </button>
-      </nav>
+      )}
+      <main id="site-main" tabIndex={-1} onClick={(event) => {
+        const anchor = event.target instanceof Element ? event.target.closest("a") : null;
+        if (anchor) navigatePreview(event, anchor);
+      }}>
       {sections.map((section) => (
         <LandingSection
           key={section.id}
           section={section}
           site={site}
           content={content}
+          siteBasePath={siteBasePath}
           anchors={anchors}
           resolveLink={resolveLink}
           forms={forms}
@@ -159,32 +153,21 @@ export function LandingPage({
           onStory={setStory}
         />
       ))}
-      <footer className="landing-footer">
-        <div>
-          <a href={anchors.hero || "#"} className="landing-logo">
-            {content.brand.name}
-            <span>®</span>
-          </a>
-          <p>{content.brand.tagline}</p>
-        </div>
-        <div>
-          {anchors.contact && (
-            <a href={anchors.contact}>
-              تماس با ما <ArrowUpLeft size={16} />
-            </a>
-          )}
-          {!preview && (
-            <Link href={`/portal/${site.slug}`}>پنل اختصاصی شما</Link>
-          )}
-          <span>
-            با عشق ساخته شده، با <Link href="/">آرالند</Link>
-          </span>
-        </div>
-      </footer>
+      </main>
+      <PublicSiteFooter
+        site={site}
+        content={content}
+        siteBasePath={siteBasePath}
+        pageId={page?.id}
+        hasPosts={posts.length > 0}
+        preview={preview}
+        onNavigate={navigatePreview}
+      />
       {story && (
         <StoryDialog
           item={story}
-          href={story.url ? resolveLink(story.url) : undefined}
+          href={story.url || story.pageId ? resolveLink(story.url, story.pageId) : undefined}
+          onNavigate={navigatePreview}
           onClose={() => setStory(null)}
         />
       )}
@@ -195,6 +178,7 @@ function LandingSection({
   section: s,
   site,
   content,
+  siteBasePath,
   anchors,
   resolveLink,
   forms,
@@ -205,16 +189,19 @@ function LandingSection({
   section: Section;
   site: Site;
   content: SiteContent;
+  siteBasePath: string;
   anchors: Partial<Record<SectionType, string>>;
-  resolveLink: (url?: string) => string;
+  resolveLink: (url?: string, pageId?: string) => string;
   forms: SiteForm[];
   posts: Post[];
   preview: boolean;
   onStory: (item: SectionItem) => void;
 }) {
+  if (s.type === "hero" && (site.templateId === "pulse" || site.templateId === "luma"))
+    return <NicheHero section={s} content={content} template={site.templateId} href={resolveLink(s.buttonUrl, s.buttonPageId)} servicesHref={anchors.services} />;
   if (s.type === "hero")
     return (
-      <section className="landing-hero" id={s.id}>
+      <section className={`landing-hero ${!s.image ? "landing-hero-text-only" : ""}`} id={s.id}>
         <div className="hero-copy">
           <div className="landing-eyebrow">
             <span />
@@ -230,11 +217,13 @@ function LandingSection({
             ))}
           </h1>
           <div className="hero-description">
-            <p>{s.subtitle}</p>
-            <a className="landing-button" href={resolveLink(s.buttonUrl)}>
-              {s.buttonText}
-              <ArrowUpLeft size={21} />
-            </a>
+            {s.subtitle && <p>{s.subtitle}</p>}
+            {s.buttonText?.trim() && (
+              <a className="landing-button" href={resolveLink(s.buttonUrl, s.buttonPageId)}>
+                {s.buttonText}
+                <ArrowUpLeft size={21} />
+              </a>
+            )}
           </div>
           {site.templateId === "forma" && preview && site.id === "demo" && (
             <div className="hero-proof">
@@ -251,8 +240,8 @@ function LandingSection({
             </div>
           )}
         </div>
-        <div className="hero-photo">
-          {s.image && <img src={s.image} alt={s.title.replace("\n", " ")} />}
+        {s.image && <div className="hero-photo">
+          <img src={s.image} alt={s.title.replace("\n", " ")} />
           <span className="hero-stamp">
             {site.templateId === "bloom"
               ? "به خودت برگرد"
@@ -261,13 +250,13 @@ function LandingSection({
                 : "DESIGNED TO FEEL LIKE YOU"}
             <MoveUpRight />
           </span>
-        </div>
+        </div>}
         <div className="hero-bottom">
           <span>{content.brand.tagline}</span>
           {anchors.services && (
             <a href={anchors.services}>برای کشف بیشتر اسکرول کنید ↓</a>
           )}
-          <span dir="ltr">EST. 2026 — IRAN</span>
+          <span>{content.brand.name}</span>
         </div>
       </section>
     );
@@ -288,7 +277,7 @@ function LandingSection({
               onClick={() => onStory(item)}
             >
               <span>
-                <img src={item.image} alt="" />
+                {item.image && <img src={item.image} alt="" loading="lazy" />}
                 <Play size={14} />
               </span>
               <b>{item.title}</b>
@@ -321,10 +310,10 @@ function LandingSection({
             <a
               key={item.id}
               className="service-card"
-              href={resolveLink(item.url)}
+              href={resolveLink(item.url, item.pageId)}
             >
               <div className="service-image">
-                {item.image && <img src={item.image} alt={item.title} />}
+                {item.image && <img src={item.image} alt={item.title} loading="lazy" />}
                 <span>0{i + 1}</span>
                 <i>
                   <ArrowUpLeft size={24} />
@@ -339,16 +328,16 @@ function LandingSection({
     );
   if (s.type === "about")
     return (
-      <section className="landing-section landing-about" id={s.id}>
-        <div className="about-image">
-          {s.image && <img src={s.image} alt={s.title} />}
+      <section className={`landing-section landing-about ${!s.image ? "landing-about-text-only" : ""}`} id={s.id}>
+        {s.image && <div className="about-image">
+          <img src={s.image} alt={s.title} loading="lazy" />
           <span className="about-star">✳</span>
-        </div>
+        </div>}
         <div>
           <span className="landing-eyebrow">02 / OUR STORY</span>
           <h2>{s.title}</h2>
           <p>{s.subtitle}</p>
-          <a className="landing-button" href={resolveLink(s.buttonUrl)}>
+          <a className="landing-button" href={resolveLink(s.buttonUrl, s.buttonPageId)}>
             {s.buttonText || "بیشتر با هم آشنا شویم"} <ArrowUpLeft size={20} />
           </a>
           <div className="about-values">
@@ -387,7 +376,6 @@ function LandingSection({
                       : "همراه ما"}
                   </small>
                 </div>
-                <span className="quote-stars">★★★★★</span>
               </figcaption>
             </figure>
           ))}
@@ -427,11 +415,11 @@ function LandingSection({
           {s.items?.map((item) => (
             <a
               key={item.id}
-              href={resolveLink(item.url)}
+              href={resolveLink(item.url, item.pageId)}
               target="_blank"
               rel="noreferrer"
             >
-              {item.image && <img src={item.image} alt={item.title} />}
+              {item.image && <img src={item.image} alt={item.title} loading="lazy" />}
               <span>
                 {item.title} <ArrowUpLeft size={20} />
               </span>
@@ -469,8 +457,8 @@ function LandingSection({
               }
               href={
                 "slug" in item
-                  ? `/s/${site.slug}/blog/${item.slug}`
-                  : resolveLink(item.url)
+                  ? `${siteBasePath}/blog/${item.slug}`
+                  : resolveLink(item.url, item.pageId)
               }
             >
               {("cover" in item
@@ -516,6 +504,7 @@ function LandingSection({
           <span className="contact-decoration">↖</span>
         </div>
         <ContactForm
+          key={`${site.id}-${s.id}-${forms.map((form) => form.id).join("-")}`}
           forms={forms}
           site={site}
           preview={preview}
@@ -528,10 +517,12 @@ function LandingSection({
 function StoryDialog({
   item,
   href,
+  onNavigate,
   onClose,
 }: {
   item: SectionItem;
   href?: string;
+  onNavigate?: (event: MouseEvent<HTMLAnchorElement>) => void;
   onClose: () => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -604,7 +595,8 @@ function StoryDialog({
               href={href}
               target={href.startsWith("http") ? "_blank" : undefined}
               rel={href.startsWith("http") ? "noreferrer" : undefined}
-              onClick={() => {
+              onClick={(event) => {
+                onNavigate?.(event);
                 if (href.startsWith("#")) onClose();
               }}
             >
@@ -631,6 +623,7 @@ function ContactForm({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const inFlight = useRef(false);
   const form = forms[formIndex] ||
     forms[0] || {
       id: "demo",
@@ -664,9 +657,13 @@ function ContactForm({
   return (
     <form
       className="contact-form"
+      key={form.id}
+      onChange={() => { setMessage(""); setError(""); }}
       onSubmit={async (e) => {
         e.preventDefault();
+        if (inFlight.current) return;
         setError("");
+        setMessage("");
         if (preview) {
           setMessage(
             "این فرم پیش‌نمایش است و پاسخی ثبت نمی‌کند. ثبت واقعی پس از انتشار، در سایت عمومی انجام می‌شود.",
@@ -678,6 +675,7 @@ function ContactForm({
           return;
         }
         setBusy(true);
+        inFlight.current = true;
         const element = e.currentTarget;
         try {
           await request(
@@ -689,6 +687,7 @@ function ContactForm({
         } catch (err) {
           setError((err as Error).message);
         } finally {
+          inFlight.current = false;
           setBusy(false);
         }
       }}
@@ -698,7 +697,8 @@ function ContactForm({
           موضوع درخواست
           <select
             value={formIndex}
-            onChange={(e) => setFormIndex(Number(e.target.value))}
+            disabled={busy}
+            onChange={(e) => { setFormIndex(Number(e.target.value)); setMessage(""); setError(""); }}
           >
             {forms.map((f, i) => (
               <option key={f.id} value={i}>
@@ -718,9 +718,11 @@ function ContactForm({
               required={field.required}
               placeholder="اینجا بنویسید…"
               rows={3}
+              maxLength={5000}
+              disabled={busy}
             />
           ) : field.type === "select" ? (
-            <select name={field.id} required={field.required}>
+            <select name={field.id} required={field.required} disabled={busy}>
               <option value="">انتخاب کنید</option>
               {("options" in field ? field.options : [])?.map((option) => (
                 <option key={option}>{option}</option>
@@ -731,6 +733,10 @@ function ContactForm({
               type={field.type === "phone" ? "tel" : field.type}
               name={field.id}
               required={field.required}
+              maxLength={field.type === "phone" ? 30 : 5000}
+              disabled={busy}
+              autoComplete={field.type === "phone" ? "tel" : field.type === "email" ? "email" : undefined}
+              dir={field.type === "phone" || field.type === "email" ? "ltr" : undefined}
               placeholder={
                 field.type === "phone" ? "۰۹۱۲ ۰۰۰ ۰۰۰۰" : field.label
               }

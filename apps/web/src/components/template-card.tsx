@@ -51,6 +51,18 @@ export function TemplatePreview({ id }: { id: TemplateId }) {
             <span>✳</span>
           </div>
         </div>
+      ) : id === "pulse" || id === "luma" ? (
+        <div className="niche-art-body">
+          <div>
+            <span className="art-small">{id === "pulse" ? "با ریتم خودت" : "مراقبت، با نگاه انسانی"}</span>
+            <h3>{id === "pulse" ? <>حال خوب،<br />از حرکت<br /><em>شروع می‌شه.</em></> : <>زیبایی،<br />با خیال<br /><em>آسوده.</em></>}</h3>
+            <span className="art-pill">{id === "pulse" ? "قدم اول رو بردار" : "درخواست مشاوره"} ↖</span>
+          </div>
+          <div className="niche-art-image">
+            <img src={t.image} alt={id === "pulse" ? "ورزش و حرکت در فضای باز" : "مراقبت و زیبایی طبیعی"} loading="lazy" />
+            <span aria-hidden="true">{id === "pulse" ? "PULSE" : "luma"}</span>
+          </div>
+        </div>
       ) : (
         <>
           <div className="forma-art-body">

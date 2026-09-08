@@ -37,7 +37,22 @@ function message(status: number, title: string, description: string) {
   );
 }
 export async function proxy(request: NextRequest) {
-  const hostname = request.nextUrl.hostname
+  // Next's server may normalize nextUrl to its bind address (for example 0.0.0.0).
+  // The original Host is the customer-domain boundary and must survive that normalization.
+  const protocol = request.headers.get("x-forwarded-proto") === "https" ? "https:" : request.nextUrl.protocol;
+  let publicUrl: URL;
+  try {
+    publicUrl = new URL(`${protocol}//${request.headers.get("host") || request.nextUrl.host}`);
+    if (publicUrl.username || publicUrl.password || publicUrl.pathname !== "/" || publicUrl.search || publicUrl.hash)
+      throw new Error("INVALID_HOST");
+  } catch {
+    return message(400, "آدرس سایت معتبر نیست", "آدرس سایت را بررسی کنید.");
+  }
+  const forwardedHeaders = new Headers(request.headers);
+  // Only this proxy may supply public-route context, including on application hosts.
+  forwardedHeaders.delete("x-araland-site-slug");
+  forwardedHeaders.set("x-araland-public-origin", publicUrl.origin);
+  const hostname = publicUrl.hostname
     .toLowerCase()
     .replace(/^\[|\]$/g, "");
   if (
@@ -46,7 +61,7 @@ export async function proxy(request: NextRequest) {
     isIP(hostname) ||
     configuredAppHosts().has(hostname)
   )
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers: forwardedHeaders } });
   const base = (
     process.env.API_INTERNAL_URL || "http://localhost:4000/api"
   ).replace(/\/$/, "");
@@ -85,27 +100,38 @@ export async function proxy(request: NextRequest) {
       "کمی بعد دوباره تلاش کنید.",
     );
   const slug = data.slug;
+  forwardedHeaders.set("x-araland-site-slug", slug);
   const path = request.nextUrl.pathname;
   const destination = request.nextUrl.clone();
+  if (path === "/robots.txt") return NextResponse.next({ request: { headers: forwardedHeaders } });
+  if (path === "/sitemap.xml") {
+    destination.pathname = `/s/${slug}/sitemap.xml`;
+    return NextResponse.rewrite(destination, { request: { headers: forwardedHeaders } });
+  }
   // Client components retain canonical platform paths; only this domain's site is allowed.
   if (
-    path === `/s/${slug}` ||
+    path === `/s/${slug}` || path === `/s/${slug}/sitemap.xml` ||
+    new RegExp(`^/s/${slug}/[a-z0-9]+(?:-[a-z0-9]+)*$`).test(path) ||
     path.startsWith(`/s/${slug}/blog/`) ||
     path === `/portal/${slug}` ||
     path === "/login"
   )
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers: forwardedHeaders } });
   if (path === "/") {
     destination.pathname = `/s/${slug}`;
-    return NextResponse.rewrite(destination);
+    return NextResponse.rewrite(destination, { request: { headers: forwardedHeaders } });
   }
   if (path.startsWith("/blog/")) {
     destination.pathname = `/s/${slug}${path}`;
-    return NextResponse.rewrite(destination);
+    return NextResponse.rewrite(destination, { request: { headers: forwardedHeaders } });
   }
   if (path === "/portal") {
     destination.pathname = `/portal/${slug}`;
-    return NextResponse.rewrite(destination);
+    return NextResponse.rewrite(destination, { request: { headers: forwardedHeaders } });
+  }
+  if (/^\/[a-z0-9]+(?:-[a-z0-9]+)*$/.test(path)) {
+    destination.pathname = `/s/${slug}${path}`;
+    return NextResponse.rewrite(destination, { request: { headers: forwardedHeaders } });
   }
   return message(
     404,
@@ -115,6 +141,6 @@ export async function proxy(request: NextRequest) {
 }
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|fonts/|images/|api/).*)",
+    "/((?!_next/static|_next/image|favicon.ico|fonts/|images/|api/).*)",
   ],
 };

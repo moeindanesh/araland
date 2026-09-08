@@ -1,4 +1,6 @@
-export type TemplateId = "orbit" | "bloom" | "forma";
+import { createNicheContent } from "./niche-templates";
+
+export type TemplateId = "orbit" | "bloom" | "forma" | "pulse" | "luma";
 export type SectionType =
   | "hero"
   | "services"
@@ -15,6 +17,7 @@ export interface SectionItem {
   description?: string;
   image?: string;
   url?: string;
+  pageId?: string;
 }
 export interface Section {
   id: string;
@@ -26,10 +29,37 @@ export interface Section {
   image?: string;
   buttonText?: string;
   buttonUrl?: string;
+  buttonPageId?: string;
+}
+export type PageKind = "page" | "service" | "topic";
+export interface SitePage {
+  id: string;
+  title: string;
+  slug: string;
+  kind: PageKind;
+  enabled: boolean;
+  sections: Section[];
+  seo: { title: string; description: string };
+}
+export type NavigationTarget =
+  | { type: "home" }
+  | { type: "page"; pageId: string }
+  | { type: "section"; sectionId: string }
+  | { type: "url"; url: string };
+export interface NavigationItem {
+  id: string;
+  label: string;
+  target: NavigationTarget;
+}
+export interface SiteNavigation {
+  header: NavigationItem[];
+  footer: NavigationItem[];
 }
 export interface SiteContent {
   brand: { name: string; tagline: string; primaryColor: string; logo?: string };
   sections: Section[];
+  pages?: SitePage[];
+  navigation?: SiteNavigation;
 }
 export interface Site {
   id: string;
@@ -147,7 +177,7 @@ export const templates: {
     color: "#7e876b",
     image:
       "https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=1400&q=85",
-    tags: ["لطیف", "رزرو خدمات"],
+    tags: ["لطیف", "معرفی خدمات"],
   },
   {
     id: "forma",
@@ -160,9 +190,30 @@ export const templates: {
       "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1400&q=85",
     tags: ["جسور", "دوره و آموزش"],
   },
+  {
+    id: "pulse",
+    name: "تپش",
+    englishName: "PULSE",
+    category: "ورزش و سلامت",
+    description: "حرکت، با ریتم خودت. برای باشگاه، مربی و استودیو تندرستی.",
+    color: "#d5f46a",
+    image: "/images/templates/pulse-hero.webp",
+    tags: ["پرانرژی", "تمرین و تندرستی"],
+  },
+  {
+    id: "luma",
+    name: "روشا",
+    englishName: "LUMA",
+    category: "پزشکی و زیبایی",
+    description: "مراقبت آگاهانه، زیبایی شخصی. برای کلینیک و مطب.",
+    color: "#234a64",
+    image: "/images/templates/luma-hero.webp",
+    tags: ["آرام و دقیق", "معرفی خدمات و مشاوره"],
+  },
 ];
 const image = (id: string) => `https://images.unsplash.com/${id}?w=1200&q=85`;
 export function createContent(templateId: TemplateId): SiteContent {
+  if (templateId === "pulse" || templateId === "luma") return createNicheContent(templateId);
   const t = templates.find((t) => t.id === templateId) ?? templates[0];
   const names = {
     orbit: "استودیو مدار",
@@ -262,7 +313,7 @@ export function createContent(templateId: TemplateId): SiteContent {
         buttonText:
           templateId === "forma"
             ? "مسیر یادگیری‌ات را پیدا کن"
-            : "رزرو جلسه آشنایی",
+            : "درخواست جلسه آشنایی",
         buttonUrl: "#contact",
       },
       {
@@ -376,20 +427,24 @@ export function createContent(templateId: TemplateId): SiteContent {
   };
 }
 export function createDemoSite(templateId: TemplateId = "orbit"): Site {
+  const content = createContent(templateId);
   return {
     id: "demo",
-    name: "استودیو مدار",
+    name: content.brand.name,
     slug: "madar-studio",
     templateId,
     status: "DRAFT",
-    draft: createContent(templateId),
+    draft: content,
     published: null,
     publishedAt: null,
     updatedAt: new Date().toISOString(),
-    seo: { title: "استودیو مدار", description: "طراحی و معماری با نگاهی تازه" },
+    seo: { title: content.brand.name, description: content.brand.tagline },
   };
 }
 export const API_URL = "http://localhost:4000/api";
+export class ApiError extends Error {
+  constructor(message: string, public status: number) { super(message); this.name = "ApiError"; }
+}
 export async function apiRequest<T>(
   path: string,
   options: RequestInit = {},
@@ -400,31 +455,130 @@ export async function apiRequest<T>(
   if (!(options.body instanceof FormData))
     headers.set("Content-Type", "application/json");
   if (token) headers.set("Authorization", `Bearer ${token}`);
-  const response = await fetch(`${baseUrl}${path}`, { ...options, headers });
+  const timeout = AbortSignal.timeout(path.includes("/ai/") ? 180_000 : 30_000);
+  const signal = options.signal ? AbortSignal.any([options.signal, timeout]) : timeout;
+  const response = await fetch(`${baseUrl}${path}`, { ...options, signal, headers });
   if (!response.ok) {
     const data = await response
       .json()
       .catch(() => ({ error: "ارتباط با سرور برقرار نشد" }));
-    throw new Error(data.error || "درخواست انجام نشد");
+    throw new ApiError(data?.error || "درخواست انجام نشد", response.status);
   }
   return response.json() as Promise<T>;
 }
 
 /** Normalize cleared optional controls before API validation. */
 export function normalizeContent(content: SiteContent): SiteContent {
-  return {
-    ...content,
-    brand: { ...content.brand, logo: content.brand.logo?.trim() || undefined },
-    sections: content.sections.map((section) => ({
+  const normalizeSections = (sections: Section[]) =>
+    sections.map((section) => ({
       ...section,
       image: section.image?.trim() || undefined,
       buttonUrl: section.buttonUrl?.trim() || undefined,
+      buttonPageId: section.buttonPageId?.trim() || undefined,
       items: section.items?.map((item) => ({
         ...item,
         image: item.image?.trim() || undefined,
         url: item.url?.trim() || undefined,
+        pageId: item.pageId?.trim() || undefined,
       })),
+    }));
+  return {
+    ...content,
+    brand: { ...content.brand, logo: content.brand.logo?.trim() || undefined },
+    sections: normalizeSections(content.sections),
+    pages: content.pages?.map((page) => ({
+      ...page,
+      slug: normalizePageSlug(page.slug),
+      sections: normalizeSections(page.sections),
     })),
+  };
+}
+
+export const pageKindLabels: Record<PageKind, string> = {
+  page: "صفحه عمومی",
+  service: "خدمت",
+  topic: "موضوع اصلی",
+};
+export const reservedPageSlugs = [
+  "api", "portal", "blog", "preview", "s", "admin", "dashboard", "home",
+  "robots", "sitemap", "robots.txt", "sitemap.xml", "assets", "_next",
+  "login", "templates", "favicon.ico", "editor", "live-preview",
+];
+export function normalizePageSlug(slug: string): string {
+  return slug.trim().normalize("NFC").toLowerCase();
+}
+export function isValidPageSlug(slug: string): boolean {
+  const normalized = normalizePageSlug(slug);
+  return normalized.length > 0 && normalized.length <= 120 &&
+    /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(normalized) &&
+    !reservedPageSlugs.includes(normalized);
+}
+export function createSitePage({ title, kind, slug, id }: {
+  title: string;
+  kind: PageKind;
+  slug: string;
+  id?: string;
+}): SitePage {
+  return {
+    id: id ?? `page-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`}`,
+    title,
+    slug: normalizePageSlug(slug),
+    kind,
+    enabled: true,
+    seo: { title, description: "" },
+    sections: [
+      { id: "hero", type: "hero", enabled: true, title },
+      { id: "about", type: "about", enabled: true, title: "بیشتر بدانید", subtitle: "" },
+      { id: "contact", type: "contact", enabled: true, title: "با ما در ارتباط باشید", buttonText: "ارسال درخواست" },
+    ],
+  };
+}
+
+/** Remove links to unavailable pages while keeping their surrounding content. */
+function retainPageLinks(sections: Section[], available: Set<string>): Section[] {
+  return sections.map((section) => ({
+    ...section,
+    ...(section.buttonPageId && !available.has(section.buttonPageId)
+      ? { buttonPageId: undefined } : {}),
+    items: section.items?.map((item) => ({
+      ...item,
+      ...(item.pageId && !available.has(item.pageId) ? { pageId: undefined } : {}),
+    })),
+  }));
+}
+export function removeSitePage(content: SiteContent, pageId: string): SiteContent {
+  const pages = (content.pages ?? []).filter((page) => page.id !== pageId);
+  const available = new Set(pages.map((page) => page.id));
+  const retainNavigation = (items: NavigationItem[]) => items.filter(
+    (item) => item.target.type !== "page" || available.has(item.target.pageId),
+  );
+  return {
+    ...content,
+    sections: retainPageLinks(content.sections, available),
+    pages: pages.map((page) => ({ ...page, sections: retainPageLinks(page.sections, available) })),
+    navigation: content.navigation ? {
+      header: retainNavigation(content.navigation.header),
+      footer: retainNavigation(content.navigation.footer),
+    } : undefined,
+  };
+}
+/** A public response never contains disabled page content or its internal links. */
+export function publicSiteContent(content: SiteContent): SiteContent {
+  const pages = (content.pages ?? []).filter((page) => page.enabled);
+  const available = new Set(pages.map((page) => page.id));
+  const homeSections = new Set(content.sections.filter((section) => section.enabled).map((section) => section.id));
+  const retainNavigation = (items: NavigationItem[]) => items.filter((item) =>
+    item.target.type === "page" ? available.has(item.target.pageId) :
+    item.target.type === "section" ? homeSections.has(item.target.sectionId) : true,
+  );
+  return {
+    ...content,
+    sections: retainPageLinks(content.sections.filter((section) => section.enabled), available),
+    pages: pages.map((page) => ({ ...page, sections: retainPageLinks(page.sections.filter((section) => section.enabled), available) })),
+    navigation: content.navigation ? {
+      header: retainNavigation(content.navigation.header),
+      footer: retainNavigation(content.navigation.footer),
+    } : undefined,
   };
 }
 export function createInitialContent(templateId: TemplateId): SiteContent {

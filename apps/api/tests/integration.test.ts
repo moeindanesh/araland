@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { db } from "@araland/db";
-import { createContent } from "@araland/shared";
+import { createContent, createInitialContent, createSitePage, removeSitePage, type SiteContent } from "@araland/shared";
 import { createApp } from "../src/app";
 import { normalizePhone, otpHash } from "../src/security";
 import { storageRoot } from "../src/media";
@@ -524,6 +524,166 @@ describe("publication and public forms", () => {
   });
 });
 
+describe("multi-page publication", () => {
+  async function createPagesSite(suffix: string) {
+    const pageSiteSlug = `pages-${suffix}-${run}`;
+    const created = await call("/sites", "POST", {
+      name: "سایت چندصفحه‌ای آزمون", slug: pageSiteSlug, templateId: "orbit",
+    }, owner);
+    expect(created.response.status).toBe(200);
+    siteIds.push(created.data.site.id);
+    return {
+      site: created.data.site,
+      path: `/sites/${created.data.site.id}`,
+      publicPath: `/public/sites/${pageSiteSlug}`,
+    };
+  }
+
+  test("keeps pages, SEO and menus private until atomic publication and follows stable IDs after renaming", async () => {
+    const { site, path, publicPath } = await createPagesSite("snapshot");
+    const draft = site.draft as SiteContent;
+    const service = createSitePage({ id: "service-page", title: "طراحی داخلی", kind: "service", slug: "design" });
+    const hidden = createSitePage({ id: "hidden-topic", title: "HIDDEN-PAGE-SECRET", kind: "topic", slug: "hidden-topic" });
+    hidden.enabled = false;
+    service.sections[0].buttonPageId = hidden.id;
+    draft.pages = [service, hidden];
+    draft.sections[0].buttonUrl = undefined;
+    draft.sections[0].buttonPageId = service.id;
+    draft.sections.find((section) => section.id === "about")!.enabled = false;
+    draft.sections.find((section) => section.id === "services")!.items![0].pageId = hidden.id;
+    draft.navigation = {
+      header: [
+        { id: "home", label: "خانه", target: { type: "home" } },
+        { id: "service", label: "خدمت", target: { type: "page", pageId: service.id } },
+        { id: "hidden", label: "HIDDEN-NAV-SECRET", target: { type: "page", pageId: hidden.id } },
+        { id: "about", label: "درباره", target: { type: "section", sectionId: "about" } },
+      ],
+      footer: [{ id: "contact", label: "تماس", target: { type: "section", sectionId: "contact" } }],
+    };
+    expect((await call(path, "PATCH", { draft }, owner)).response.status).toBe(200);
+    expect((await call(`${publicPath}/pages/design`)).response.status).toBe(404);
+    expect((await call(path, "PATCH", { draft }, stranger)).response.status).toBe(404);
+    expect((await call(path, "PATCH", { draft })).response.status).toBe(401);
+    expect((await call(`${path}/publish`, "POST", undefined, owner)).response.status).toBe(200);
+
+    const live = await call(publicPath);
+    expect(live.data.site.published.pages).toHaveLength(1);
+    expect(live.data.site.published.navigation.header).toHaveLength(2);
+    expect(live.data.site.draft).toEqual(live.data.site.published);
+    expect(JSON.stringify(live.data)).not.toContain("HIDDEN-PAGE-SECRET");
+    expect(JSON.stringify(live.data)).not.toContain("HIDDEN-NAV-SECRET");
+    expect(live.data.site.published.pages[0].sections[0].buttonPageId).toBeUndefined();
+    expect(live.data.site.published.sections.find((section: any) => section.id === "services").items[0].pageId).toBeUndefined();
+    expect((await call(`${publicPath}/pages/hidden-topic`)).response.status).toBe(404);
+    const livePage = await call(`${publicPath}/pages/design`);
+    expect(livePage.response.status).toBe(200);
+    expect(livePage.data.page.title).toBe("طراحی داخلی");
+    expect(livePage.data.forms).toHaveLength(1);
+    expect(livePage.data.posts).toEqual([]);
+    expect(livePage.data.site.workspaceId).toBeUndefined();
+
+    service.title = "عنوان جدید خصوصی";
+    service.slug = "interior-design";
+    service.seo = { title: "SEO خصوصی صفحه", description: "توضیح خصوصی" };
+    service.sections[0].title = "متن خصوصی صفحه";
+    draft.navigation.header[1].label = "عنوان خصوصی فهرست";
+    expect((await call(path, "PATCH", { draft }, owner)).response.status).toBe(200);
+    expect((await call(`${publicPath}/pages/design`)).data.page.title).toBe("طراحی داخلی");
+    expect((await call(`${publicPath}/pages/interior-design`)).response.status).toBe(404);
+    expect((await call(publicPath)).data.site.published.navigation.header[1].label).toBe("خدمت");
+    await call(`${path}/publish`, "POST", undefined, owner);
+    expect((await call(`${publicPath}/pages/design`)).response.status).toBe(404);
+    const renamed = await call(`${publicPath}/pages/interior-design`);
+    expect(renamed.data.page.id).toBe(service.id);
+    expect(renamed.data.page.seo.title).toBe("SEO خصوصی صفحه");
+    expect(renamed.data.site.published.sections[0].buttonPageId).toBe(service.id);
+    expect(renamed.data.site.published.navigation.header[1].target.pageId).toBe(service.id);
+
+    const removed = removeSitePage(draft, service.id);
+    expect((await call(path, "PATCH", { draft: removed }, owner)).response.status).toBe(200);
+    expect((await call(`${publicPath}/pages/interior-design`)).response.status).toBe(200);
+    await call(`${path}/publish`, "POST", undefined, owner);
+    expect((await call(`${publicPath}/pages/interior-design`)).response.status).toBe(404);
+    expect((await call(publicPath)).data.site.published.pages).toEqual([]);
+    expect((await call(publicPath)).data.site.published.sections[0].buttonPageId).toBeUndefined();
+  });
+
+  test("validates page addresses and site-local links without changing saved content", async () => {
+    const { site, path } = await createPagesSite("validation");
+    const draft = site.draft as SiteContent;
+    draft.pages = [createSitePage({ id: "valid-page", title: "خدمت", kind: "service", slug: "design" })];
+    draft.navigation = { header: [], footer: [] };
+    expect((await call(path, "PATCH", { draft }, owner)).response.status).toBe(200);
+    const invalid: ((candidate: SiteContent) => void)[] = [
+      (candidate) => candidate.pages!.push({ ...candidate.pages![0], slug: "another" }),
+      (candidate) => candidate.pages!.push({ ...candidate.pages![0], id: "another", slug: "DESIGN" }),
+      (candidate) => { candidate.pages![0].slug = "blog"; },
+      (candidate) => { candidate.pages![0].slug = "editor"; },
+      (candidate) => { candidate.pages![0].slug = "live-preview"; },
+      (candidate) => { candidate.pages![0].title = " \t\n "; },
+      (candidate) => { candidate.pages![0].slug = "a/b"; },
+      (candidate) => { candidate.pages![0].slug = "صفحه"; },
+      (candidate) => { candidate.pages![0].sections.push(candidate.pages![0].sections[0]); },
+      (candidate) => { candidate.sections[0].buttonUrl = undefined; candidate.sections[0].buttonPageId = "foreign-site-page"; },
+      (candidate) => { candidate.sections[0].buttonPageId = "valid-page"; },
+      (candidate) => { candidate.pages![0].sections[0].buttonPageId = "foreign-site-page"; },
+      (candidate) => { candidate.pages![0].sections[0].buttonUrl = "javascript:alert(1)"; },
+      (candidate) => { candidate.pages![0].sections[0].image = "data:image/svg+xml,unsafe"; },
+      (candidate) => { candidate.sections[2].items![0].pageId = "valid-page"; candidate.sections[2].items![0].url = "https://example.com"; },
+      (candidate) => { candidate.navigation!.header = [{ id: "x", label: "لینک", target: { type: "page", pageId: "foreign-site-page" } }]; },
+      (candidate) => { candidate.navigation!.footer = [{ id: "x", label: "لینک", target: { type: "section", sectionId: "missing-section" } }]; },
+      (candidate) => { candidate.navigation!.header = [{ id: "x", label: " \t\n ", target: { type: "home" } }]; },
+      (candidate) => { candidate.navigation!.footer = [{ id: "x", label: " \t\n ", target: { type: "home" } }]; },
+      (candidate) => { candidate.navigation!.header = [{ id: "x", label: "لینک", target: { type: "url", url: "javascript:alert(1)" } }]; },
+      (candidate) => { candidate.navigation!.header = [{ id: "x", label: "خانه", target: { type: "home" } }, { id: "x", label: "دوباره", target: { type: "home" } }]; },
+      (candidate) => { candidate.pages = Array.from({ length: 51 }, (_, index) => createSitePage({ id: `page-${index}`, title: "صفحه", kind: "page", slug: `page-${index}` })); },
+    ];
+    for (const mutate of invalid) {
+      const candidate = structuredClone(draft);
+      mutate(candidate);
+      expect((await call(path, "PATCH", { draft: candidate }, owner)).response.status).toBe(400);
+    }
+    expect((await call(path, "GET", undefined, owner)).data.site.draft.pages).toHaveLength(1);
+    expect((await call(path, "GET", undefined, owner)).data.site.draft.pages[0].slug).toBe("design");
+    const other = await createPagesSite("other");
+    expect((await call(other.path, "PATCH", { draft }, owner)).response.status).toBe(200);
+    const foreignOnly = other.site.draft as SiteContent;
+    foreignOnly.sections[0].buttonUrl = undefined;
+    foreignOnly.sections[0].buttonPageId = "valid-page";
+    expect((await call(other.path, "PATCH", { draft: foreignOnly }, owner)).response.status).toBe(400);
+  });
+
+  test("retains pages across template changes and hides a disabled page only after republishing", async () => {
+    const { site, path, publicPath } = await createPagesSite("template");
+    const draft = site.draft as SiteContent;
+    draft.pages = [createSitePage({ id: "topic", title: "موضوع اصلی", kind: "topic", slug: " Main-Topic " })];
+    draft.sections.push({ id: "custom-section", title: "بخش سفارشی", type: "about", enabled: true });
+    draft.navigation = { header: [
+      { id: "topic-link", label: "موضوع", target: { type: "page", pageId: "topic" } },
+      { id: "custom-link", label: "بخش", target: { type: "section", sectionId: "custom-section" } },
+    ], footer: [] };
+    expect((await call(path, "PATCH", { draft }, owner)).response.status).toBe(200);
+    await call(`${path}/publish`, "POST", undefined, owner);
+    const changed = await call(`${path}/template`, "POST", { templateId: "bloom" }, owner);
+    expect(changed.response.status).toBe(200);
+    expect(changed.data.site.draft.pages[0].slug).toBe("main-topic");
+    expect(changed.data.site.draft.pages[0].kind).toBe("topic");
+    expect(changed.data.site.draft.navigation.header.map((item: any) => item.id)).toEqual(["topic-link"]);
+    expect((await call(publicPath)).data.site.templateId).toBe("orbit");
+    expect((await call(`${publicPath}/pages/main-topic`)).response.status).toBe(200);
+    const disabled = changed.data.site.draft as SiteContent;
+    disabled.pages![0].enabled = false;
+    expect((await call(path, "PATCH", { draft: disabled }, owner)).response.status).toBe(200);
+    expect((await call(`${publicPath}/pages/main-topic`)).response.status).toBe(200);
+    await call(`${path}/publish`, "POST", undefined, owner);
+    expect((await call(`${publicPath}/pages/main-topic`)).response.status).toBe(404);
+    const live = await call(publicPath);
+    expect(live.data.site.templateId).toBe("bloom");
+    expect(live.data.site.published.navigation.header).toEqual([]);
+    expect(live.data.site.published.pages).toEqual([]);
+  });
+});
+
 describe("member portal, private files, domains and media", () => {
   test("a file is visible only to its assigned member or site owner", async () => {
     const form = new FormData();
@@ -909,5 +1069,62 @@ describe("portal session scope", () => {
         })
       ).response.status,
     ).toBe(403);
+  });
+});
+
+describe("production audit regressions", () => {
+  test("all owner resource lists reject another tenant's session", async () => {
+    for (const resource of ["stats", "leads", "members", "forms", "posts", "domains", "files", "media"]) {
+      expect((await call(`/sites/${siteId}/${resource}`, "GET", undefined, stranger)).response.status).toBe(404);
+      expect((await call(`/sites/${siteId}/${resource}`)).response.status).toBe(401);
+    }
+  });
+  test("new templates can be edited and published without demo claims or hidden content leaking", async () => {
+    for (const templateId of ["pulse", "luma"] as const) {
+      const created = await call("/sites", "POST", { name: `آزمون ${templateId}`, slug: `audit-${templateId}-${run}`, templateId }, owner);
+      expect(created.response.status).toBe(200);
+      const id = created.data.site.id;
+      siteIds.push(id);
+      const draft = createInitialContent(templateId);
+      expect(draft.sections.find(s => s.type === "testimonials")?.items).toHaveLength(0);
+      draft.sections.push({id:"hidden-notes",type:"about",enabled:false,title:"PRIVATE-NOTES",subtitle:"Do not expose this disabled content"});
+      const page = createSitePage({ title: "عنوان بلند", kind: "service", slug: "a".repeat(100) });
+      page.sections.push({id:"hidden-page-notes",type:"about",enabled:false,title:"PRIVATE-PAGE-NOTES"});
+      draft.pages = [page];
+      expect((await call(`/sites/${id}`, "PATCH", { draft }, owner)).response.status).toBe(200);
+      expect((await call(`/public/sites/audit-${templateId}-${run}`)).response.status).toBe(404);
+      expect((await call(`/sites/${id}/publish`, "POST", {}, owner)).response.status).toBe(200);
+      const publicResult = await call(`/public/sites/audit-${templateId}-${run}`);
+      expect(publicResult.data.site.templateId).toBe(templateId);
+      expect(JSON.stringify(publicResult.data)).not.toContain("PRIVATE-NOTES");
+      expect(JSON.stringify(publicResult.data)).not.toContain("PRIVATE-PAGE-NOTES");
+      expect((await call(`/public/sites/audit-${templateId}-${run}/pages/${page.slug}`)).response.status).toBe(200);
+      expect((await call(`/sites/${id}`, "GET", undefined, owner)).data.site.draft.sections.some((s: any) => s.id === "hidden-notes")).toBe(true);
+    }
+  });
+  test("rejects blank required labels and ambiguous select options", async () => {
+    expect((await call(`/sites/${siteId}`, "PATCH", { name: "   " }, owner)).response.status).toBe(400);
+    const blank = await call(`/sites/${siteId}/forms`, "POST", {title:" ",fields:[{id:"a",label:"نام",type:"text",required:true}]},owner);
+    expect(blank.response.status).toBe(400);
+    const duplicate = await call(`/sites/${siteId}/forms`, "POST", {title:"فرم آزمون",fields:[{id:"a",label:"انتخاب",type:"select",required:true,options:["یک", "یک"]}]},owner);
+    expect(duplicate.response.status).toBe(400);
+  });
+  test("revokes a private file and removes a domain only for its owner and site", async () => {
+    const form = new FormData();
+    form.set("file",new File(["revocation fixture"],"audit.txt",{type:"text/plain"}));
+    form.set("title","فایل آزمون لغو");
+    form.set("recipientPhone", phones[2]);
+    const uploaded = await call(`/sites/${siteId}/files`, "POST",form,owner);
+    expect(uploaded.response.status).toBe(200);
+    const id = uploaded.data.file.id;
+    expect((await call(`/sites/${siteId}/files/${id}`, "DELETE",undefined,stranger)).response.status).toBe(404);
+    expect((await call(`/sites/${siteId}/files/${id}`, "DELETE",undefined,owner)).response.status).toBe(200);
+    expect((await call(`/files/${id}/download`, "GET",undefined,member)).response.status).toBe(404);
+    expect((await call(`/files/${id}/download`, "GET",undefined,owner)).response.status).toBe(404);
+    const domain = await call(`/sites/${siteId}/domains`, "POST",{hostname:`remove-${run}.invalid`},owner);
+    expect(domain.response.status).toBe(200);
+    expect((await call(`/sites/${siteId}/domains/${domain.data.domain.id}`, "DELETE",undefined,stranger)).response.status).toBe(404);
+    expect((await call(`/sites/${siteId}/domains/${domain.data.domain.id}`, "DELETE",undefined,owner)).response.status).toBe(200);
+    expect(await db.domain.findUnique({where:{id:domain.data.domain.id}})).toBeNull();
   });
 });

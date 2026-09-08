@@ -1,12 +1,31 @@
 import { cache } from "react";
 import { notFound } from "next/navigation";
-import type { Site, SiteForm, Post } from "@araland/shared";
+import { headers } from "next/headers";
+import { isValidPageSlug, type Site, type SiteForm, type Post } from "@araland/shared";
 
 export interface PublishedSiteData {
   site: Site;
   forms: SiteForm[];
   posts: Post[];
 }
+export async function publicSiteContext(slug: string) {
+  const requestHeaders = await headers();
+  const siteBasePath = requestHeaders.get("x-araland-site-slug") === slug ? "" : `/s/${slug}`;
+  const origin = requestHeaders.get("x-araland-public-origin") || process.env.APP_URL || "http://localhost:3000";
+  return {
+    siteBasePath,
+    canonical: (path = "") => new URL(`${siteBasePath}${path}` || "/", origin).toString(),
+    asset: (path: string) => new URL(path, origin).toString(),
+  };
+}
+
+export const loadPublishedPage = cache(async (slug: string, pageSlug: string) => {
+  if (!isValidPageSlug(pageSlug)) notFound();
+  const data = await loadPublishedSite(slug);
+  const page = data.site.published?.pages?.find((page) => page.slug === pageSlug && page.enabled);
+  if (!page) notFound();
+  return { ...data, page };
+});
 export const loadPublishedSite = cache(
   async (slug: string): Promise<PublishedSiteData> => {
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || slug.length > 63)

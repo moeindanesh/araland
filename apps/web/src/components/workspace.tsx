@@ -82,6 +82,7 @@ const demoStats: Stats = {
 };
 export function Workspace() {
   const [view, setView] = useState("overview");
+  const [templateCategory, setTemplateCategory] = useState<string | null>(null);
   const [site, setSite] = useState<Site>(createDemoSite());
   const [sites, setSites] = useState<Site[]>([]);
   const [sitesLoaded, setSitesLoaded] = useState(false);
@@ -1169,20 +1170,20 @@ export function Workspace() {
                   <SectionHeading
                     eyebrow="با طراحی خوب شروع کن"
                     title="کدام قالب، شبیه کسب‌وکار توست؟"
-                    description="سه شخصیت متفاوت. بی‌نهایت راه برای ساختن چیزی که مال خودت باشد."
+                    description="پنج شخصیت متفاوت. بی‌نهایت راه برای ساختن چیزی که مال خودت باشد."
                   />
                   <div className="template-filter">
-                    <span className="filter-active">
-                      همه قالب‌ها <b>۳</b>
-                    </span>
+                    <ActionButton className={templateCategory === null ? "filter-active" : ""} aria-pressed={templateCategory === null} onClick={() => setTemplateCategory(null)}>
+                      همه قالب‌ها <b>{fa(templates.length)}</b>
+                    </ActionButton>
                     {templates.map((t) => (
-                      <a key={t.id} href={`#template-${t.id}`}>
+                      <ActionButton key={t.id} aria-pressed={templateCategory === t.category} className={templateCategory === t.category ? "filter-active" : ""} onClick={() => setTemplateCategory(t.category)}>
                         {t.category}
-                      </a>
+                      </ActionButton>
                     ))}
                   </div>
                   <div className="template-grid full-gallery">
-                    {templates.map((t) => (
+                    {templates.filter((template) => !templateCategory || template.category === templateCategory).map((t) => (
                       <div key={t.id} id={`template-${t.id}`}>
                         <TemplateCard
                           id={t.id}

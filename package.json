@@ -15,7 +15,7 @@
     "db:push": "bun run --filter @araland/db push",
     "db:seed": "bun run --filter @araland/db seed",
     "typecheck": "bun run --filter '*' typecheck",
-    "test": "bun run --filter @araland/api test",
+    "test": "bun run --filter @araland/api test && bun run --filter @araland/web test",
     "build": "bun run --filter @araland/web build",
     "db:local": "bun scripts/local-db.ts start",
     "db:stop": "bun scripts/local-db.ts stop",
